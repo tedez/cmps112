@@ -1,0 +1,99 @@
+  09/29/17 12:27:54
+1/2
+  .
+. -------------------------------------------------------------------
+. CHEATING WILL NOT BE TOLERATED.  CHEATING IN ANY PART OF THE COURSE
+. MAY LEAD TO FAILING THE COURSE AND SUSPENSION OR DISMISSAL FROM THE
+. UNIVERSITY.  ALL STUDENTS SHALL READ THE UCSC ACADEMIC INTEGRITY
+. WEB PAGES:  https://www.ue.ucsc.edu/academic_misconduct
+. -------------------------------------------------------------------
+. Pair programming is permitted in this course.  Read details in
+. /afs/cats.ucsc.edu/courses/cmps112-wm/Syllabus/pair-programming/
+. -------------------------------------------------------------------
+.
+. Quarter:
+. Course:
+. Directory:
+.
+. Homework:
+.
+. Piazza:
+.
+. Instructor:  Wesley Mackey (mackey@soe.ucsc.edu), 459-5322
+. Office.hrs:  Tue/Thu     2:30pm-- 4:00pm  E2/253
+. Lectures:    Tue/Thu     7:10pm-- 8:45pm  E&M/B206
+.
+. TA:
+. TA:
+. TA:
+. Labs:  01A  Mon 09:00am--11:00am  JBE/105 Sara
+. Labs:  01B  Mon 02:00pm--04:00pm  JBE/105 Muhammad
+. Labs:  01C  Tue 02:00pm--04:00pm  JBE/105 Shih-Ming
+. Labs:  01E  Wed 05:00pm--07:00pm  JBE/105 Sara
+. Labs:  01F  Thu 09:00pm--11:00pm  JBE/105 Muhammad
+. Labs:  01G  Fri 04:00pm--06:00pm  JBE/105 Shih-Ming
+. http://its.ucsc.edu/computer-labs/class-schedules/spring/be105.html
+.
+. LSS tutor:    Shanee Dinay (sdinay@ucsc.edu)
+. MSI website:  http://lss.ucsc.edu/programs/modified-supplemental-instruction/
+index.html
+. MSI schedule: https://eop.sa.ucsc.edu/msi/msischedule.cfm
+.
+. You are required to have a Linux account in order to submit your
+. assignments.  All grading is done on the unix.ucsc.edu servers.
+.
+. COURSE INFORMATION:
+Fall 2017
+CMPS-112 - Comparative Programming Languages
+/afs/cats.ucsc.edu/courses/cmps112-wm/
+http://www2.ucsc.edu/courses/cmps112-wm/:/
+/afs/cats.ucsc.edu/class/cmps112-wm.f16/
+submit cmps112-wm.f16 ...
+https://piazza.com/ucsc/fall2017/cmps112
+Muhammad Saber (mtsaber@ucsc.edu)
+Sara Sholes (ssholes@ucsc.edu)
+Shih-Ming Wang (swang150@ucsc.edu)
+. Syllabus:
+. Assignments:
+. Old-Exams:
+. Lecture-Notes: http:Lecture-notes/
+. Languages:     http:Languages/
+.
+. CLASS SCHEDULE AND DUE DATES:
+.
+# Mon Sep  4. Holiday - Labor Day.
+# Thu Sep 28. Begin instruction.
+. Wed Oct 18. End add/drop/swap.
+. Wed Nov  8. End withdraw.
+. Fri Nov 10. Holiday - Veterans.
+. Thu Nov 23. Holiday - Thanksgiving.
+. Fri Nov 24. Holiday - Thanksgiving.
+http:Syllabus/
+http:Assignments/
+http:Old-Exams/
+$cmps112-wm/ Readme.all.cmps112.txt
+  09/29/17 12:27:54
+2/2
+  . Fri Dec  8. End instruction.
+. Wed Dec 20. Grades due.
+.
+. Fri Oct  6. LAB 0.
+. Tue Oct 17. ASG 1 DUE.
+. Thu Nov  2. ASG 2 DUE.
+. Mon Nov 20. ASG 3 DUE.
+. Wed Dec  6. ASG 4 DUE.
+.
+http:Assignments/lab0-intro-unix/
+http:Assignments/asg1-scheme-sbi/
+http:Assignments/asg2-*
+http:Assignments/asg3-*
+http:Assignments/asg4-*
+. Tue Nov  7. MIDTERM TEST.  http:Old-Exams/
+. Tue Dec 12. FINAL EXAM.    http:Old-Exams/ 7:30pm--9:30pm
+.             NOTE:  The final exam will be 2 hours in duration.
+.             http://registrar.ucsc.edu/soc/final-examinations.html
+.
+. For the complete text, including deleted lines, see the files
+. README-all-cmps012b.*
+. $Id: Readme.all.cmps112.txt,v 1.115 2017-09-29 12:27:54-07 - - $
+$cmps112-wm/ Readme.all.cmps112.txt
