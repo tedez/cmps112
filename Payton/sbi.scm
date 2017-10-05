@@ -202,4 +202,3 @@
 
 ;; BEGIN
 (main (vector->list (current-command-line-arguments)))
-
