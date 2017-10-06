@@ -13,24 +13,32 @@
 ;;
 
 ;; ============
-;; Setting up hastables.
+;; Setting up hastables.  *foo* means 'foo' is a global var.
 (define *symbol-table* (make-hash))
 (define (symbol-get key)
-		(hash-ref *symbol-table* key)
+	(hash-ref *symbol-table* key)
 )
 (define (symbol-put! key value)
-		(hash-set! *symbol-table* key value)
+	(hash-set! *symbol-table* key value)
 )
 
 (define *function-table* (make-hash))
 (define (func-get key)
-		(hash-ref *function-table* key)
+	(hash-ref *function-table* key)
 )
 (define (func-put! key value)
-		(hash-set! *function-table* key value)
+	(hash-set! *function-table* key value)
 )
 (define (func-has? key)
-		(hash-has-key? *function-table* key)
+	(hash-has-key? *function-table* key)
+)
+
+(define *label-table* (make-hash))
+(define (label-get key)
+	(hash-ref *label-table* key)
+)
+(define (label-put! key value)
+	(hash-set! *label-table* key value)
 )
 
 ;; Init hashtables.
@@ -75,19 +83,20 @@
 		 )
 )
 
-(for-each
-	(lambda (pair)
-		(func-put! (car pair) (cadr pair))
-	)
-	`(
-			(dim		,func-dim)
-			(let 		,func-let)
-			(goto 	,func-goto)
-			(if 		,func-if)
-			(print 	,func-print)
-			(input 	,func-input)
-	 )
-)
+;(for-each
+;	(lambda (pair)
+;		(func-put! (car pair) (cadr pair))
+;	)
+;	`(
+;			(dim		,func-dim)
+;			(let 		,func-let)
+;			(goto 	,func-goto)
+;			(if 		,func-if)
+;			(print 	,func-print)
+;			(input 	,func-input)
+;	 )
+;)
+
 
 ;; ===============
 ;; Provided funcs
@@ -169,20 +178,51 @@
 					; Skip line if it just contains a number.
 					((number? cmd) (begin-exec program (+ line-num 1)))
 					; If it's a list (valid command) process the line.
-					;((list? cmd) (exec-line program (car cmd) line-num))
+					((list? cmd) (exec-line program (car cmd) line-num))
 				)
 			)
 		)
 	)
 )
 
-;(define (exec-line program cmd line-num)
+(define (exec-line program cmd line-num)
+	;(display cmd)
+	;(newline)
+	;(printf "(car cmd): ~a~n" (car cmd))
+	(cond 
+		((eq? (car cmd) 'print) 
+			;(printf "Found print.~n")
+			(when (not (null? (cdr cmd)))
+				; Interpret each element to display.
+				(for-each (lambda (x) (display(interp x))) (cdr cmd))
+				(newline)
+			)
+			; Start over on the next line.
+			(begin-exec program (+ line-num 1))
+		)
+	      
+  )
+)
 
-;)
+(define (interp element)
+	(cond 
+		((number? element) (+ element 0.0))
+	)
+)
 
-;(define (create-labels program line-num)
-
-;)
+(define (create-labels program)
+	(for-each (lambda (line)
+							(when (and (>= (length line) 2) (symbol? (cadr line)))
+								; Add label to label-table.
+								(let ((line-num (- (car line) 1)))
+									(label-put! (cadr line) line-num)
+								)
+								;(printf "(cadr line): ~a~n" (cadr line))
+							)
+						)
+						program
+	)
+)
 
 
 (define (main arglist)
@@ -193,7 +233,10 @@
 					 (program (readlist-from-inputfile sbprogfile))
 					)
 					;;(write-program-by-line sbprogfile program)
-					;(create-labels program)
+					(create-labels program)
+					;(display *label-table*)
+					;(newline)
+					;(print-list program)
 					(begin-exec program 0)
 		)
 	)
