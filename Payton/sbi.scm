@@ -83,19 +83,35 @@
 		 )
 )
 
-;(for-each
-;	(lambda (pair)
-;		(func-put! (car pair) (cadr pair))
-;	)
-;	`(
-;			(dim		,func-dim)
-;			(let 		,func-let)
-;			(goto 	,func-goto)
-;			(if 		,func-if)
-;			(print 	,func-print)
-;			(input 	,func-input)
-;	 )
-;)
+
+; Gets handled in exec-line
+(define (func-print stmnt)
+	(printf "Should not be able to reach func-print here.~n")
+)
+
+(define (func-goto lbl)
+	(printf "Should not be able to reach func-goto here.~n")
+)
+
+(define (func-if stmnt)
+	(printf "Should not be able to reach func-if here.~n")
+)
+
+;; These functions were way too long to just be represented
+;; by lambdas.
+(for-each
+	(lambda (pair)
+		(func-put! (car pair) (cadr pair))
+	)
+	`(
+			;(dim		,func-dim)
+			;(let 		,func-let)
+			(goto 	,func-goto)
+			(if 		,func-if)
+			(print 	,func-print)
+			;(input 	,func-input)
+	 )
+)
 
 
 ;; ===============
@@ -191,7 +207,6 @@
 	;(printf "(car cmd): ~a~n" (car cmd))
 	(cond 
 		((eq? (car cmd) 'print) 
-			;(printf "Found print.~n")
 			(when (not (null? (cdr cmd)))
 				; Interpret each element to display.
 				(for-each (lambda (x) (display(interp x))) (cdr cmd))
@@ -204,9 +219,15 @@
   )
 )
 
+;; Does the proper lookups and formatting for each element
+;; of the command.
 (define (interp element)
-	(cond 
+	(cond
+		; Mackey explicitly said to make all numbers floats. 
 		((number? element) (+ element 0.0))
+		((string? element) element)
+		; Is the element in our symbol-table?
+		((hash-has-key? *symbol-table* element) (symbol-get element))
 	)
 )
 
