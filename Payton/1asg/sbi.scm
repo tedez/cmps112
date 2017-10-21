@@ -85,16 +85,47 @@
 
 
 ; Gets handled in exec-line
-(define (func-print stmnt)
+(define (p-print printable)
 	(printf "Should not be able to reach func-print here.~n")
 )
 
-(define (func-goto lbl)
+(define (p-goto lbl)
 	(printf "Should not be able to reach func-goto here.~n")
 )
 
-(define (func-if stmnt)
+(define (p-if reel)
 	(printf "Should not be able to reach func-if here.~n")
+)
+
+(define (p-let mem-ex)
+	;(display mem-ex)
+	;(newline)
+	(when (pair? mem-ex)
+		(let ((size (interp (cadr mem-ex)))
+					(mem (car mem-ex))
+				 )
+			;(printf "car: ~a~n" mem)
+			;(printf "cadr: ~a~n: " expr)
+			(symbol-put! mem (make-vector (+ size 1)))
+		)
+	)
+)
+
+;; arrays are created w/: (dim (arry 10)))
+;; and set with (let (arry i) 9))
+(define (p-dim arry)
+	; Vectors are as close to arrays as we can get,
+	; can access vectors with indices
+	(display arry)
+	(newline)
+	(when (pair? (car arry))
+		(let* ((var-ex (car arry))
+					 (expr (interp (cadr var-ex)))
+					 (var (car var-ex))
+				  )
+			(symbol-put! var expr)
+		)
+	)
 )
 
 ;; These functions were way too long to just be represented
@@ -104,12 +135,12 @@
 		(func-put! (car pair) (cadr pair))
 	)
 	`(
-			;(dim		,func-dim)
-			;(let 		,func-let)
-			(goto 	,func-goto)
-			(if 		,func-if)
-			(print 	,func-print)
-			;(input 	,func-input)
+		(dim		,p-dim)
+		(let 		,p-let)
+		;(goto 	,p-goto)
+		(if 		,p-if)
+		(print 	,p-print)
+		;(input 	,func-input)
 	 )
 )
 
@@ -156,6 +187,15 @@
 		(printf ")~n")
 )
 
+;; 
+;; What category of object is this?
+;;
+
+(define (what-kind value)
+    (cond ((real? value) 'real)
+          ((vector? value) 'vector)
+          ((procedure? value) 'procedure)
+          (else 'other)))
 
 ;;=============
 ;; Utils
@@ -202,32 +242,53 @@
 )
 
 (define (exec-line program cmd line-num)
-	;(display cmd)
-	;(newline)
-	;(printf "(car cmd): ~a~n" (car cmd))
 	(cond 
 		((eq? (car cmd) 'print) 
 			(when (not (null? (cdr cmd)))
 				; Interpret each element to display.
-				(for-each (lambda (x) (display(interp x))) (cdr cmd))
+				(for-each (lambda (x) (display (interp x))) (cdr cmd))
 				(newline)
 			)
 			; Start over on the next line.
 			(begin-exec program (+ line-num 1))
 		)
-	      
+		((eq? (car cmd) 'if)
+			; I don't think I can do if before I do let.
+			(print-list (cdr cmd))
+		)
+	  (else 
+	  	;(printf "(cdr cmd): ~a~n" (cdr cmd))
+	  	((func-get (car cmd)) (cdr cmd))
+	  	(begin-exec program (+ line-num 1))
+	  )   
   )
 )
 
 ;; Does the proper lookups and formatting for each element
-;; of the command.
+;; of the command.  This is done recursively so the element
+;; is is checked from terminal -> nonterminal
 (define (interp element)
+	;(printf "element: ~a~n" element)
 	(cond
 		; Mackey explicitly said to make all numbers floats. 
 		((number? element) (+ element 0.0))
+		; Strings are only used in print statements.
 		((string? element) element)
 		; Is the element in our symbol-table?
 		((hash-has-key? *symbol-table* element) (symbol-get element))
+		; Using list? is discouraged.
+		((pair? element) 
+			(when (hash-has-key? *symbol-table* (car element))
+				(let ((op (symbol-get(car element))))
+					(cond 
+						((procedure? op)
+							;; map returns a list of the interpetted elements
+							(apply op (map (lambda(e) (interp e)) (cdr element)))
+						)
+					)
+				)
+			)
+		)
 	)
 )
 
