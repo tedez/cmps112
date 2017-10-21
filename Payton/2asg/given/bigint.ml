@@ -25,8 +25,8 @@ module Bigint = struct
 
     let rec cmp' value1 value2 =
         if List.length value1 = 0 && List.length value2 = 0 then 0
-        else if List.length value1 = 0 && List.length value2 <> 0 then -1
-        else if List.length value1 <> 0 && List.length value2 = 0 then 1
+        else if List.length value1 = 0 && List.length value2 > 0 then -1
+        else if List.length value1 > 0 && List.length value2 = 0 then 1
         else if List.hd value1 > List.hd value2 then 1
         else if List.hd value1 < List.hd value2 then -1
         else cmp' (List.tl value1) (List.tl value2)
@@ -34,7 +34,7 @@ module Bigint = struct
 
     let cmp value1 value2 = 
         if (List.length value1) < (List.length value2) then -1
-        else if (List.length value2) > (List.length value1) then 1
+        else if (List.length value1) > (List.length value2) then 1
         else cmp' (List.rev value1) (List.rev value2)
 
     let bi_cmp (Bigint (neg1, value1)) (Bigint (neg2, value2)) = 
@@ -81,15 +81,36 @@ module Bigint = struct
           let sum = car1 + car2 + carry in
           sum mod radix :: add' cdr1 cdr2 (sum / radix)
 
+
+    let rec sub' list1 list2 carry = match (list1, list2, carry) with
+        | list1, [], 0        -> list1
+        | [], list2, 0        -> list2
+        | list1, [], carry    -> sub' list1 [carry] 0
+        | [], list2, carry    -> [] (* I dont think this should ever even happen. *)
+        | car1::cdr1, car2::cdr2, carry ->
+            if car1 - carry - car2 < 0
+            then 
+                (
+                    (* carry = 1; *)
+                    let diff = car1 + radix - car2 and carry = 1 in
+                    diff mod radix :: sub' cdr1 cdr2 carry
+                )
+            else 
+                (
+                    let diff = car1 - car2 in
+                    diff mod radix :: sub' cdr1 cdr2 0
+                )
+
     let add (Bigint (neg1, value1)) (Bigint (neg2, value2)) =
         (* printf "%d\n" (cmp value1 value2); *)
         if neg1 = neg2
         then Bigint (neg1, add' value1 value2 0)
-        else zero (* We should be subtracting here. *)
-
-
-    (* let sub' list1 list2 carry = math (list1, list2, carry) with *)
-
+        else 
+            (
+                if (cmp value1 value2) = 1
+                then Bigint (neg1, sub' value1 value2 0)
+                else Bigint (neg2, sub' value2 value1 0)
+            )
 
 
 
@@ -100,12 +121,16 @@ module Bigint = struct
                  * is that of the biggest abs(num) *)
                 if (cmp value1 value2) = 1
                 then Bigint (neg1, add' value1 value2 0)
-                else Bigint (neg1, add' value1 value2 0)
+                else Bigint (neg2, add' value2 value1 0)
              )
-        (* else ( 
-                
-             ) *)
-         else zero (* TODO: Actually do the subtraction *)
+        else (
+                (* zero *)
+                if (cmp value1 value2) = 1
+                then Bigint (neg1, sub' value1 value2 0)
+                else Bigint (neg2, sub' value2 value1 0)
+             )
+            
+         (* else zero *) (* TODO: Actually do the subtraction *)
                    (* This is just a placeholder *)
 
 
