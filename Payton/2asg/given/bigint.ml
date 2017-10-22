@@ -88,10 +88,10 @@ module Bigint = struct
         | list1, [], carry    -> sub' list1 [carry] 0
         | [], list2, carry    -> [] (* I dont think this should ever even happen. *)
         | car1::cdr1, car2::cdr2, carry ->
-            if car1 - carry - car2 < 0
+            let car1 = car1 - carry in
+            if car1- car2 < 0
             then 
                 (
-                    (* carry = 1; *)
                     let diff = car1 + radix - car2 and carry = 1 in
                     diff mod radix :: sub' cdr1 cdr2 carry
                 )
@@ -109,7 +109,7 @@ module Bigint = struct
             (
                 if (cmp value1 value2) = 1
                 then Bigint (neg1, sub' value1 value2 0)
-                else Bigint (neg2, sub' value2 value1 0)
+                else Bigint (neg1, sub' value2 value1 0)
             )
 
 
