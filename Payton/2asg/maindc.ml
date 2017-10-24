@@ -1,63 +1,94 @@
-let rcsid = "$Id: ncat.ml,v 330.3 2003-02-04 17:09:21-08 - - $"
-    ;;
+(* $Id: maindc.ml,v 1.5 2017-04-07 13:24:41-07 - - $ *)
 
-(*
-* NAME
-*    ncat - list files to the standard output
-*
-* SYNOPSIS
-*    ncat [filename...]
-*
-* DESCRIPTION
-*    Each file given in the argument list is copied to the standard
-*    output, in sequence, preceded by a file header.  Non-printing
-*    characters ([\x00-\x1F\x7F-\xA0], except \n and \t) are printed
-*    in hexadecimal.  If no filenames are given, stdin is copied.
-*)
+include Scanner
+include Bigint
 
-let stack = Stack.create ()
+open Bigint
+open Printf
+open Scanner
 
-let complain message =
-    ( flush stdout;
-      Printf.eprintf "%s: %s\n" Sys.argv.(0) message;
-      flush stderr );;
+type stack_t = Bigint.bigint Stack.t
+let push = Stack.push
+let pop = Stack.pop
 
-let display byte =
-    let printable = byte = '\t'
-                 || byte = '\n'
-                 || ' ' <= byte && byte <= '~'
-                 (* || '¡' <= byte && byte <= 'ÿ' *)
-    in  if printable
-        then Printf.printf "%c" byte
-        else Printf.printf "\\x%02X" (int_of_char byte)
-    ;;
+let f_name = Filename.basename Sys.argv.(0)
 
-let pushlines readline =
-    let rec pushloop linecount =
-        try  let nextline = readline ()
-             in( (* String.iter display nextline; *)
-                 (* print_newline (); *)
-                 Stack.push nextline stack;
-                 pushloop (linecount + 1) )
-        with End_of_file -> flush stdout (* this is bugging me, switching to None gives an error. *)
-        (* with End_of_file -> None *)
-    in  pushloop 1
-    ;;
+let ord thechar = int_of_char thechar
+type binop_t = bigint -> bigint -> bigint
 
-let iterfile filename =
-    try 
-    	let file = open_in filename in
-        ( pushlines (fun () -> input_line file) )
-    with 
-    	Sys_error message -> complain message
-    ;;
+let rec print_number number = 
+    let len = (String.length (string_of_bigint number)) in
+    if len > 70
+    then (
+            printf "%s\\\n%!" (String.sub (string_of_bigint number) 0 69);
+            print_number (bigint_of_string (String.sub (string_of_bigint
+             number) 70 (len - 70)))
+         )
+    else printf "%s\n%!" (string_of_bigint number)
 
-let listfiles () =
-    let argvfiles = Array.length Sys.argv - 1 in
-      	if argvfiles = 0
-        then pushlines read_line
-        else Array.iter iterfile (Array.sub Sys.argv 1 argvfiles)
-    ;;
+let print_stackempty () = printf "%s: stack empty\n%!" f_name
 
-if not ! Sys.interactive then listfiles ();;
+let executereg (thestack: stack_t) (oper: char) (reg: int) =
+    try match oper with
+        | 'l' -> printf "operator l reg 0%o is unimplemented\n%!" reg
+        | 's' -> printf "operator s reg 0%o is unimplemented\n%!" reg
+        | _   -> printf "0%o 0%o is unimplemented\n%!" (ord oper) reg
+    with Stack.Empty -> print_stackempty()
+
+let executebinop (thestack: stack_t) (oper: binop_t) =
+    try let right = pop thestack
+        in  try let left = pop thestack
+                in  push (oper left right) thestack
+            with Stack.Empty -> (print_stackempty ();
+                                 push right thestack)
+    with Stack.Empty -> print_stackempty ()
+
+let execute (thestack: stack_t) (oper: char) =
+    try match oper with
+        | '+'  -> executebinop thestack Bigint.add
+        | '-'  -> executebinop thestack Bigint.sub
+        | '*'  -> executebinop thestack Bigint.mul
+        | '/'  -> executebinop thestack Bigint.div
+        | '%'  -> executebinop thestack Bigint.rem
+        | '^'  -> executebinop thestack Bigint.pow
+        | 'c'  -> Stack.clear thestack
+        | 'd'  -> push (Stack.top thestack) thestack
+        | 'f'  -> Stack.iter print_number thestack
+        | 'l'  -> failwith "operator l scanned with no register"
+        | 'p'  -> print_number (Stack.top thestack)
+        | 'q'  -> raise End_of_file
+        | 's'  -> failwith "operator s scanned with no register"
+        | '\n' -> ()
+        | ' '  -> ()
+        | _    -> printf "0%o is unimplemented\n%!" (ord oper)
+    with Stack.Empty -> print_stackempty()
+
+let toploop (thestack: stack_t) inputchannel =
+    let scanbuf = Lexing.from_channel inputchannel in
+    let rec toploop () = 
+        try  let nexttoken = Scanner.scanner scanbuf
+             in  (match nexttoken with
+                 | Number number       -> push number thestack
+                 | Regoper (oper, reg) -> executereg thestack oper reg
+                 | Operator oper       -> execute thestack oper
+                 );
+             toploop ()
+        with End_of_file -> printf "%!";
+    in  toploop ()
+
+let readfiles () =
+    let thestack : bigint Stack.t = Stack.create ()
+    in  ((if Array.length Sys.argv > 1 
+         then try  let thefile = open_in Sys.argv.(1)
+                   in  toploop thestack thefile
+              with Sys_error message -> (
+                   printf "%s: %s\n%!" f_name message;
+                   exit 1));
+        toploop thestack stdin)
+
+let interact () =
+    let thestack : bigint Stack.t = Stack.create ()
+    in  toploop thestack stdin
+
+let _ = if not !Sys.interactive then readfiles ()
 
