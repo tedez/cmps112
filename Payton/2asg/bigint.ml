@@ -81,6 +81,9 @@ module Bigint = struct
                        ((if sign = Pos then "" else "-") ::
                         (map string_of_int reversed))
 
+    let actual_value list1 =
+        (int_of_string (strcat "" (map string_of_int (reverse list1))))
+
     let rec add' list1 list2 carry = match (list1, list2, carry) with
         | list1, [], 0       -> list1
         | [], list2, 0       -> list2
@@ -148,29 +151,90 @@ module Bigint = struct
                 else Bigint (neg2, sub' value2 value1 0)
              )
 
-    let rec mul' list1 list2 =
-        if (int_of_string (strcat "" (map string_of_int (reverse list2)))) = 1 then list1
-        else add' list1 (mul' list1 (sub' list2 [1] 0)) 0
+    let double number = add' number number 0
+
+    let rec mul' list1 powerof2 list2 =
+        if (actual_value powerof2) > (actual_value list1)
+        then list1, [0]
+    else let rem, prod = 
+        mul' list1 (double powerof2) (double list2) in 
+        if (actual_value rem) < (actual_value powerof2)
+        then rem, prod 
+    else (sub' rem powerof2 0), (add' prod list2 0)
+
             
 
     let mul (Bigint (neg1, value1)) (Bigint (neg2, value2)) =
         if neg1 = neg2
+        then let _, prod =
+            mul' value1 [1] value2 in Bigint(Pos, prod)
+        else let _, prod =
+            mul' value1 [1] value2 in Bigint(Neg, prod)
+
+    let rec divrem' list1 powerof2 list2 =
+        if (actual_value list2) > (actual_value list1)
+        then [0], list1
+        else let quotient, remainder = 
+                 divrem' list1 (double powerof2) (double list2) in 
+             if (actual_value remainder) < (actual_value list2)
+                then quotient, remainder
+                else (add' quotient powerof2 0), (sub' remainder list2 0)
+
+    let divrem list1 list2 = divrem' list1 [1] list2
+
+    let div (Bigint (neg1, value1)) (Bigint (neg2, value2)) =
+        if neg1 = neg2
+        then let quotient, _ = divrem value1 value2 in 
+        Bigint (Pos, quotient)
+        else let quotient, _ = divrem value1 value2 in 
+        Bigint (Neg, quotient)
+
+    let rem (Bigint (neg1, value1)) (Bigint (neg2, value2)) =
+        if neg1 = neg2
+        then let _, remainder = divrem value1 value2 in 
+            Bigint(Pos, remainder)
+        else let _, remainder = divrem value1 value2 in 
+            Bigint(Neg, remainder)
+
+    let rec apply_n f n x=
+        if n < 0 then raise(Invalid_argument "error")
+        else if n = 0 then x
+        else apply_n f (n - 1) (f x)
+
+    let is_even list1 = 
+        if (actual_value list1) mod 2 = 0 then true
+        else false
+
+    let is_odd list1 = 
+        if (actual_value list1) mod 2 = 0 then false
+        else true
+
+    let pow (Bigint (neg1, value1)) (Bigint (neg2, value2)) =
+        (* if (actual_value value2) = 0 then Bigint(Pos, [1])
+        else if (actual_value value2) < 0 then Bigint (Pos, [0])
+        else if (actual_value value1) = 0 then Bigint(Pos, [0])
+        else if (actual_value value1) = 1
         then (
-                if (cmp value1 value2) = 1
-                then Bigint (Pos, mul' value1 value2)
-                else Bigint (Pos, mul' value2 value1)
+                if neg1 = Pos then Bigint(Pos,[1])
+                else (
+                        if (is_even value2)
+                        then Bigint(Pos, [1])
+                        else Bigint(Neg, [1])
+                     )  
              )
         else (
-                if (cmp value1 value2) = 1
-                then Bigint (Neg, mul' value1 value2)
-                else Bigint (Neg, mul' value2 value1)
-             ) 
-
-    let div = add
-
-    let rem = add
-
-    let pow = add
+                if (is_even value2)
+                then let _, prod =
+                    apply_n (mul' value1 [1] value1) (actual_value value2) 0
+                    in Bigint(Pos, prod)
+                else let _, prod =
+                    apply_n (mul' value1 [1] value1) (actual_value value2) 0
+                    in Bigint(Neg, prod)
+             ) *)
+        let rec pow' value1 value2 result = match value2 with
+            | [0]                          -> result
+            | value2 when (is_odd value2)  -> pow' value1 (sub' value2 [1] 0) (mul' result value1)
+            | value2                       -> pow' (mul' value1 value1) fst(divrem' )
 
 end
 
