@@ -183,7 +183,8 @@ module Bigint = struct
     let divrem list1 list2 = divrem' list1 [1] list2
 
     let div (Bigint (neg1, value1)) (Bigint (neg2, value2)) =
-        if neg1 = neg2
+        if (actual_value value2) = 0 then raise(Division_by_zero)
+        else if neg1 = neg2
         then let quotient, _ = divrem value1 value2 in 
         Bigint (Pos, quotient)
         else let quotient, _ = divrem value1 value2 in 
@@ -196,11 +197,6 @@ module Bigint = struct
         else let _, remainder = divrem value1 value2 in 
             Bigint(Neg, remainder)
 
-    let rec apply_n f n x=
-        if n < 0 then raise(Invalid_argument "error")
-        else if n = 0 then x
-        else apply_n f (n - 1) (f x)
-
     let is_even list1 = 
         if (actual_value list1) mod 2 = 0 then true
         else false
@@ -209,32 +205,15 @@ module Bigint = struct
         if (actual_value list1) mod 2 = 0 then false
         else true
 
+    let rec pow' base expt result  = match expt with
+        | [0]                       -> result
+        | expt when (is_even expt)  -> pow' (snd(mul' base [1] base)) (fst(divrem expt [2])) result
+        | expt                      -> pow' base (sub' expt [1] 0) (snd(mul' base [1] result))
+
     let pow (Bigint (neg1, value1)) (Bigint (neg2, value2)) =
-        (* if (actual_value value2) = 0 then Bigint(Pos, [1])
-        else if (actual_value value2) < 0 then Bigint (Pos, [0])
-        else if (actual_value value1) = 0 then Bigint(Pos, [0])
-        else if (actual_value value1) = 1
-        then (
-                if neg1 = Pos then Bigint(Pos,[1])
-                else (
-                        if (is_even value2)
-                        then Bigint(Pos, [1])
-                        else Bigint(Neg, [1])
-                     )  
-             )
-        else (
-                if (is_even value2)
-                then let _, prod =
-                    apply_n (mul' value1 [1] value1) (actual_value value2) 0
-                    in Bigint(Pos, prod)
-                else let _, prod =
-                    apply_n (mul' value1 [1] value1) (actual_value value2) 0
-                    in Bigint(Neg, prod)
-             ) *)
-        let rec pow' value1 value2 result = match value2 with
-            | [0]                          -> result
-            | value2 when (is_odd value2)  -> pow' value1 (sub' value2 [1] 0) (mul' result value1)
-            | value2                       -> pow' (mul' value1 value1) fst(divrem' )
+        if neg2 = Neg then Bigint(Pos, [0])
+        else if (is_even value2) then Bigint(Pos, pow' value1 value2 [1])
+        else Bigint(neg1, pow' value1 value2 [1])
 
 end
 
