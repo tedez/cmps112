@@ -148,19 +148,21 @@ module Bigint = struct
         else ( 
                 if (cmp value1 value2) = 1
                 then Bigint (neg1, sub' value1 value2 0)
-                else Bigint (neg2, sub' value2 value1 0)
+                else Bigint (Neg, sub' value2 value1 0)
              )
 
     let double number = add' number number 0
 
     let rec mul' list1 powerof2 list2 =
-        if (actual_value powerof2) > (actual_value list1)
+        (* if (actual_value powerof2) > (actual_value list1) *)
+        if cmp powerof2 list1 = 1
         then list1, [0]
-    else let rem, prod = 
+        else let rem, prod = 
         mul' list1 (double powerof2) (double list2) in 
-        if (actual_value rem) < (actual_value powerof2)
+        (* if (actual_value rem) < (actual_value powerof2) *)
+        if cmp rem powerof2 = -1
         then rem, prod 
-    else (sub' rem powerof2 0), (add' prod list2 0)
+        else (sub' rem powerof2 0), (add' prod list2 0)
 
             
 
@@ -172,18 +174,20 @@ module Bigint = struct
             mul' value1 [1] value2 in Bigint(Neg, prod)
 
     let rec divrem' list1 powerof2 list2 =
-        if (actual_value list2) > (actual_value list1)
+        (* if (actual_value list2) > (actual_value list1) *)
+        if cmp list2 list1 = 1
         then [0], list1
         else let quotient, remainder = 
                  divrem' list1 (double powerof2) (double list2) in 
-             if (actual_value remainder) < (actual_value list2)
+             (* if (actual_value remainder) < (actual_value list2) *)
+             if cmp remainder list2 = -1
                 then quotient, remainder
                 else (add' quotient powerof2 0), (sub' remainder list2 0)
 
     let divrem list1 list2 = divrem' list1 [1] list2
 
     let div (Bigint (neg1, value1)) (Bigint (neg2, value2)) =
-        if (actual_value value2) = 0 then raise(Division_by_zero)
+        if value2 = [0] then raise(Division_by_zero)
         else if neg1 = neg2
         then let quotient, _ = divrem value1 value2 in 
         Bigint (Pos, quotient)
@@ -198,12 +202,12 @@ module Bigint = struct
             Bigint(Neg, remainder)
 
     let is_even list1 = 
-        if (actual_value list1) mod 2 = 0 then true
+        if snd(divrem list1 [2]) = [0] then true
         else false
 
     let is_odd list1 = 
-        if (actual_value list1) mod 2 = 0 then false
-        else true
+        if snd(divrem list1 [2]) <> [0] then true
+        else false
 
     let rec pow' base expt result  = match expt with
         | [0]                       -> result
