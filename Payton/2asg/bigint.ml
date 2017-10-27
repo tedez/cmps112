@@ -44,14 +44,16 @@ module Bigint = struct
         else if neg1 = Neg && neg2 = Neg then (cmp value1 value2)
         else 0
 
-    let rec strip_zero' list =
-        if (car list) = 0 then strip_zero'(cdr list)
-        else list
-
-    let strip_zero list = match list with
-        | []     -> []
-        | [0]    -> list
-        | list   -> strip_zero' (reverse list)
+    let strip_zero list =
+        let rec strip_zero' list' = match list' with
+            | []    -> []
+            | [0]   -> []
+            | car::cdr ->
+                let cdr' = strip_zero' cdr in 
+                match car, cdr' with
+                    | 0, [] -> []
+                    | car, cdr' -> car::cdr'
+        in strip_zero' list
 
     let charlist_of_string str = 
         let last = strlen str - 1
@@ -76,13 +78,16 @@ module Bigint = struct
     let string_of_bigint (Bigint (sign, value)) =
         match value with
         | []    -> "0"
-        | value -> let reversed = strip_zero value
+        | value -> let reversed = reverse value
                    in  strcat ""
                        ((if sign = Pos then "" else "-") ::
                         (map string_of_int reversed))
 
     let actual_value list1 =
         (int_of_string (strcat "" (map string_of_int (reverse list1))))
+
+    let string_of_list list1 =
+        (strcat "" (map string_of_int (reverse list1)))
 
     let rec add' list1 list2 carry = match (list1, list2, carry) with
         | list1, [], 0       -> list1
@@ -156,43 +161,43 @@ module Bigint = struct
     let rec mul' list1 powerof2 list2 =
         (* if (actual_value powerof2) > (actual_value list1) *)
         if cmp powerof2 list1 = 1
-        then list1, [0]
+        then list1, []
         else let rem, prod = 
-        mul' list1 (double powerof2) (double list2) in 
-        (* if (actual_value rem) < (actual_value powerof2) *)
-        if cmp rem powerof2 = -1
-        then rem, prod 
-        else (sub' rem powerof2 0), (add' prod list2 0)
+            mul' list1 (double powerof2) (double list2) in 
+            (* if (actual_value rem) < (actual_value powerof2) *)
+            if cmp powerof2 rem = 1
+            then rem, prod 
+            else (strip_zero (sub' rem powerof2 0)), (add' prod list2 0)
 
             
 
     let mul (Bigint (neg1, value1)) (Bigint (neg2, value2)) =
-        if neg1 = neg2
-        then let _, prod =
-            mul' value1 [1] value2 in Bigint(Pos, prod)
-        else let _, prod =
-            mul' value1 [1] value2 in Bigint(Neg, prod)
+        let _, prod =
+            mul' value1 [1] value2 in
+            if neg1 = neg2 then Bigint(Pos, strip_zero(prod))
+            else Bigint(Neg, strip_zero(prod))
+        
 
     let rec divrem' list1 powerof2 list2 =
         (* if (actual_value list2) > (actual_value list1) *)
         if cmp list2 list1 = 1
-        then [0], list1
+        then [], list1
         else let quotient, remainder = 
                  divrem' list1 (double powerof2) (double list2) in 
              (* if (actual_value remainder) < (actual_value list2) *)
              if cmp remainder list2 = -1
-                then quotient, remainder
-                else (add' quotient powerof2 0), (sub' remainder list2 0)
+            then quotient, remainder
+            else (add' quotient powerof2 0), (strip_zero (sub' remainder list2 0))
 
     let divrem list1 list2 = divrem' list1 [1] list2
 
     let div (Bigint (neg1, value1)) (Bigint (neg2, value2)) =
         if value2 = [0] then raise(Division_by_zero)
-        else if neg1 = neg2
-        then let quotient, _ = divrem value1 value2 in 
-        Bigint (Pos, quotient)
-        else let quotient, _ = divrem value1 value2 in 
-        Bigint (Neg, quotient)
+        else 
+            let quotient, _ = divrem value1 value2 in
+            if neg1 = neg2 then Bigint (Pos, quotient)
+            else Bigint (Neg, quotient)
+                
 
     let rem (Bigint (neg1, value1)) (Bigint (neg2, value2)) =
         if neg1 = neg2

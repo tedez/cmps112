@@ -22,7 +22,7 @@ let rec print_number number =
     then (
             printf "%s\\\n%!" (String.sub (string_of_bigint number) 0 69);
             print_number (bigint_of_string (String.sub (string_of_bigint
-             number) 70 (len - 70)))
+             number) 69 (len - 69)))
          )
     else printf "%s\n%!" (string_of_bigint number)
 
