@@ -214,10 +214,17 @@ module Bigint = struct
         if snd(divrem list1 [2]) <> [0] then true
         else false
 
-    let rec pow' base expt result  = match expt with
+    let rec pow' base expt result = let sign = car expt in 
+    match expt with
         | [0]                       -> result
-        | expt when (is_even expt)  -> pow' (snd(mul' base [1] base)) (fst(divrem expt [2])) result
-        | expt                      -> pow' base (sub' expt [1] 0) (snd(mul' base [1] result))
+        | expt when (sign mod 2 = 0)  -> 
+            let _,prod = mul' base [1] base in
+            let quot,_ = divrem expt [2] in
+            pow' prod quot result
+        | expt                      -> 
+            let diff = sub' expt [1] 0 in 
+            let _, prod = mul' base [1] result in
+            pow' base diff prod
 
     let pow (Bigint (neg1, value1)) (Bigint (neg2, value2)) =
         if neg2 = Neg then Bigint(Pos, [0])
