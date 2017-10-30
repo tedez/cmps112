@@ -28,10 +28,15 @@ let rec print_number number =
 
 let print_stackempty () = printf "%s: stack empty\n%!" f_name
 
+let reg_ht = Hashtbl.create 255
+
 let executereg (thestack: stack_t) (oper: char) (reg: int) =
     try match oper with
-        | 'l' -> printf "operator l reg 0%o is unimplemented\n%!" reg
-        | 's' -> printf "operator s reg 0%o is unimplemented\n%!" reg
+        | 'l' -> if (Hashtbl.mem reg_ht reg)
+                 then push (Hashtbl.find reg_ht reg) thestack
+                 else printf "%s: register '%d' (%3d) is empty.\n"
+                             f_name (65-reg+1) reg 
+        | 's' -> Hashtbl.replace reg_ht reg (pop thestack)
         | _   -> printf "0%o 0%o is unimplemented\n%!" (ord oper) reg
     with Stack.Empty -> print_stackempty()
 
