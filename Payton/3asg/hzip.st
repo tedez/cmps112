@@ -4,7 +4,7 @@ nl := Character nl.
 
 Character extend [
 	isPrint [
-		^ (Character space <= self) & (self <= $~)
+		^(Character space <= self) & (self <= $~)
 	]
 	visible [
 		self isPrint ifTrue: [^ '$', self asString]
@@ -32,15 +32,15 @@ Object subclass: ZeroArray [
 	]
 
 	size [
-		^ theArray size.
+		^theArray size.
 	]
 
 	at: index [
-		^ theArray at: index + 1.
+		^theArray at: index + 1.
 	]
 
 	at: index put: value [
-		^ theArray at: index + 1 put: value.
+		^theArray at: index + 1 put: value.
 	]
 
 	incr: index [
@@ -117,17 +117,15 @@ Object subclass: BitStream [
 			bitIndex := 9.
 		].
 		bitIndex := bitIndex - 1.
-		^ byte value bitAt: bitIndex
+		^ =byte value bitAt: bitIndex
 	]
 	atEnd [
-		^ bitIndex = 1 and: [myStream atEnd]
+		^bitIndex = 1 and: [myStream atEnd]
 	]
 ]
 
 Object subclass: Leaf [
 	|char count|
-	char [ ^ char ]
-	count [ ^ count ]
 
 	Leaf class >> new [
 		self shouldNotImplement
@@ -140,6 +138,10 @@ Object subclass: Leaf [
 		^result
 	]
 
+	char [ ^char ]
+	count [ ^count ]
+	isLeaf [ ^true ]
+
 	setChar: aChar andCount: aCount [
 		char := aChar.
 		count := aCount.
@@ -147,6 +149,12 @@ Object subclass: Leaf [
 
 	<= other [
 		^ (count < other count)
+		"
+			&,|     - nonlazy eval
+			and, or - lazy eval
+		"
+		" If the character counts are the same,
+		  use the ascii char value as the tie-breaker "
 		| ((count = other count) & (char <= other char))
 	]
 
@@ -160,6 +168,21 @@ Object subclass: Leaf [
 
 	inorder: visitor prefix: string [
 		visitor value: char value: string.
+	]
+
+	printTree: outbits [
+		outits writeBit: 0.
+
+		8 to 1 by: -1 do: [:index |
+			outbits writeBit: ((self char asInteger) bitAt: index)
+		].
+
+		char asInteger = 0 ifTrue: [
+			outbits writeBit: 0.
+		].
+		char asInteger = 256 ifTrue: [
+			outbits writeBit: 1.
+		].
 	]
 ]
 
@@ -176,6 +199,10 @@ Leaf subclass: Tree [
 		result setLeft: aLeft andRight: aRight.
 		^ result
 	]
+
+	getRight [^ right]
+	getLeft [^ left]
+	isLeaf [^ false]
 
 	setLeft: aLeft andRight: aRight [
 		left := aLeft.
@@ -214,7 +241,7 @@ FileStream extend [
 " ======== MAIN ======== "
 
 |debug_f compress_f uncompress_f display_f f_name
-in_file out_file root in_stream out_stream h_encoded_table root_node|
+in_file out_file root in_stream out_stream encoded_table root_node|
 
 debug_f      := 0.
 compress_f   := 0.
@@ -224,6 +251,7 @@ f_name       := ''.
 
 freqtable := ZeroArray new: 257.
 freqtable at: 256 put: 1.
+encoded_table := ZeroArray new: 257.
 
 " Priority queue for decoding tree. "
 pq := SortedCollection new.
@@ -247,6 +275,8 @@ pq := SortedCollection new.
 	in_file buildTable: freqtable.
 
 	"(b) Add all elements in freqtable to our PQ "
+	" Since the PQ is a SortedCollection, it's already sorted
+	  in ascending order! How neat is that? "
 	freqtable keysAndValuesDo: [:key :value |
 		(value notNil and: [value > 0]) ifTrue: [
 			|node|
@@ -256,15 +286,21 @@ pq := SortedCollection new.
 
 	].
 
-	" print pq, for debug "
-	stdout << pq << nl.
+	freqtable keysAndValuesDo: [:key :value |
+		(value notNil and: [value > 0]) ifTrue: [
+			stdout << 'key: ' << key asCharacter visible << ', val: ' << value << nl.
+		]
+	].
 
-	"(c) build huff tree "
-	(pq size > 1) whileTrue: [
+	" print pq, for debug "
+	"stdout << pq << nl."
+
+	"(c) building the tree out of the pq"
+	[pq size > 1] whileTrue: [
 		|left right new_tree|
 		left := pq removeFirst.
 
-		(pq size > 0) ifTrue: [
+		[pq size > 0] ifTrue: [
 			right := pq removeFirst.
 			(left notNil and: [right notNil]) ifTrue: [
 				new_tree := Tree new: left char
@@ -274,5 +310,8 @@ pq := SortedCollection new.
 		]
 	].
 	root_node := pq removeFirst.
+
+	"(d) Construct encoding string using DFS "
+
 
 ]
