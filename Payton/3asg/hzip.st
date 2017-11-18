@@ -2,6 +2,17 @@
 
 nl := Character nl.
 
+FileStream extend [
+	nl := Character nl.
+	buildTable: table [
+		[self atEnd not] whileTrue: [
+			" next gives us our string value except a newline "
+			" which we then cast to an int "
+			table incr: self next asInteger.
+		]
+	]
+]
+
 Character extend [
 	isPrint [
 		^(Character space <= self) & (self <= $~)
@@ -11,6 +22,77 @@ Character extend [
 			     ifFalse: [^ self asInteger printStringRadix: 8]
 	]
 ]
+
+""
+" OutBits: Opens a file given as the first arg and writes out bits
+		   to either stdout or a file. "
+		   "Bits -> String"
+""
+Object subclass: OutBits [
+	|bitIndex currentByte myStream|
+	OutBits class >> new [
+		self shouldNotImplement.
+	]
+	OutBits class >> new: fileStream [
+		|result|
+		result := super new.
+		result init: fileStream.
+		^ result
+	]
+	clearByte [
+		bitIndex := 8.
+		currentByte := 0.
+	]
+	init: fileStream [
+		myStream := fileStream.
+		self clearByte.
+	]
+	flushByte [
+		bitIndex = 8 ifFalse: [
+			myStream nextPutByte: currentByte.
+			self clearByte.
+		]
+	]
+	writeBit: bit [
+		currentByte := currentByte bitAt: bitIndex put: bit.
+		bitIndex := bitIndex - 1.
+		bitIndex = 0 ifTrue: [self flushByte].
+	]
+]
+
+""
+" BitStream:  Takes in a string from a stream and stores it's 
+              bits internally in nextBit "
+              "String -> Bits"
+""
+Object subclass: BitStream [
+	|bitIndex byte myStream|
+	BitStream class >> new: fileStream [
+		|result|
+		result := super new.
+		result init: fileStream.
+		^result
+	]
+	init: fileStream [
+		myStream := fileStream.
+		bitIndex := 1.
+	]
+	nextBit [
+		bitIndex = 1 ifTrue: [
+			byte := myStream next.
+			bitIndex := 9.
+		].
+		bitIndex := bitIndex - 1.
+		^byte value bitAt: bitIndex
+	]
+	atEnd [
+		^bitIndex = 1 and: [myStream atEnd]
+	]
+	currByte [
+		^byte
+	]
+]
+
 
 Object subclass: ZeroArray [
 	|theArray|
@@ -56,76 +138,13 @@ Object subclass: ZeroArray [
 	]
 ]
 
-""
-" OutBits: Opens a file given as the first arg and writes out bits
-		   to either stdout or a file. "
-		   "Bits -> String"
-""
-Object subclass: OutBits [
-	|bitIndex currentByte myStream|
-	OutBits class >> new [
-		self shouldNotImplement.
-	]
-	OutBits class >> new: fileStream [
-		|result|
-		result := super new.
-		result init: fileStream.
-		^ result
-	]
-	clearByte [
-		bitIndex := 8.
-		currentByte := 0.
-	]
-	init: fileStream [
-		myStream := fileStream.
-		self clearByte.
-	]
-	flushByte [
-		bitIndex = 8 ifFalse: [
-			myStream nextPutByte: currentByte.
-			self clearByte.
-		]
-	]
-	writeBit: bit [
-		currentByte := currentByte bitAt: bitIndex put: bit.
-		bitIndex := bitIndex - 1.
-		bitIndex = 0 ifTrue: [self flushByte].
-	]
-]
-
-
-""
-" BitStream:  Takes in a string from a stream and stores it's 
-              bits internally in nextBit "
-              "String -> Bits"
-""
-Object subclass: BitStream [
-	|bitIndex byte myStream|
-	BitStream class >> new: fileStream [
-		|result|
-		result := super new.
-		result init: fileStream.
-		^ result
-	]
-	init: fileStream [
-		myStream := fileStream.
-		bitIndex := 1.
-	]
-	nextBit [
-		bitIndex = 1 ifTrue: [
-			byte := myStream next.
-			bitIndex := 9.
-		].
-		bitIndex := bitIndex - 1.
-		^ =byte value bitAt: bitIndex
-	]
-	atEnd [
-		^bitIndex = 1 and: [myStream atEnd]
-	]
-]
 
 Object subclass: Leaf [
 	|char count|
+
+	char [ ^char ]
+	count [ ^count ]
+	isLeaf [ ^true ]
 
 	Leaf class >> new [
 		self shouldNotImplement
@@ -137,10 +156,6 @@ Object subclass: Leaf [
 		result setChar: aChar andCount: aCount.
 		^result
 	]
-
-	char [ ^char ]
-	count [ ^count ]
-	isLeaf [ ^true ]
 
 	setChar: aChar andCount: aCount [
 		char := aChar.
@@ -166,32 +181,35 @@ Object subclass: Leaf [
 		(self printBase: aStream) << ')'.
 	]
 
-	inorder: visitor prefix: string [
-		visitor value: char value: string.
-	]
-
 	printTree: outbits [
-		outits writeBit: 0.
+		outbits writeBit: 0.
 
-		8 to 1 by: -1 do: [:index |
-			outbits writeBit: ((self char asInteger) bitAt: index)
-		].
+		8 to: 1 by: -1 do: [:index |
+			outbits writeBit: ((self char asInteger) bitAt: index)].
 
 		char asInteger = 0 ifTrue: [
-			outbits writeBit: 0.
-		].
+			outbits writeBit: 0.].
+
 		char asInteger = 256 ifTrue: [
-			outbits writeBit: 1.
-		].
+			outbits writeBit: 1.].
+	]
+
+	inorder: visitor prefix: string [
+		visitor value: char value: string.
 	]
 ]
 
 Leaf subclass: Tree [
 	|left right|
 
+	isLeaf [ ^false ]
+
 	Tree class >> new: aChar count: aCount [
 		self shouldNotImplement
 	]
+
+	getRight [ ^right ]
+	getLeft [ ^left ]
 
 	Tree class >> new: aChar count: aCount left: aLeft right: aRight [
 		|result|
@@ -199,10 +217,7 @@ Leaf subclass: Tree [
 		result setLeft: aLeft andRight: aRight.
 		^ result
 	]
-
-	getRight [^ right]
-	getLeft [^ left]
-	isLeaf [^ false]
+	
 
 	setLeft: aLeft andRight: aRight [
 		left := aLeft.
@@ -213,11 +228,6 @@ Leaf subclass: Tree [
 		(self printBase: aStream) << ',' << left << ',' << right << ')'.
 	]
 
-	inorder: visitor prefix: string [
-		left inorder: visitor prefix: string, '0'.
-		right inorder: visitor prefix: string, '1'.
-	]
-
 	printTree: outbits [
 		" Send the left side of the tree to outbits "
 		left printTree: outbits.
@@ -225,19 +235,16 @@ Leaf subclass: Tree [
 		right printTree: outbits.
 		outbits writeBit: 1.
 	]
-]
 
-
-FileStream extend [
-	nl := Character nl.
-	buildTable: table [
-		[self atEnd not] whileTrue: [
-			" next gives us our string value except a newline "
-			" which we then cast to an int "
-			table incr: self next asInteger.
-		]
+	inorder: visitor prefix: string [
+		left inorder: visitor prefix: string, '0'.
+		right inorder: visitor prefix: string, '1'.
 	]
+
 ]
+
+
+
 " ======== MAIN ======== "
 
 |debug_f compress_f uncompress_f display_f f_name
@@ -300,7 +307,7 @@ pq := SortedCollection new.
 		|left right new_tree|
 		left := pq removeFirst.
 
-		[pq size > 0] ifTrue: [
+		(pq size > 0) ifTrue: [
 			right := pq removeFirst.
 			(left notNil and: [right notNil]) ifTrue: [
 				new_tree := Tree new: left char
@@ -312,6 +319,6 @@ pq := SortedCollection new.
 	root_node := pq removeFirst.
 
 	"(d) Construct encoding string using DFS "
-
+	
 
 ]
