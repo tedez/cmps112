@@ -1,5 +1,6 @@
 " PUT MACKEY's GST LINK HERE "
 
+
 nl := Character nl.
 
 FileStream extend [
@@ -171,6 +172,7 @@ Object subclass: Leaf [
 		" If the character counts are the same,
 		  use the ascii char value as the tie-breaker "
 		| ((count = other count) & (char <= other char))
+		|FixVimHighlighting|
 	]
 
 	printBase: aStream [
@@ -273,6 +275,7 @@ pq := SortedCollection new.
 		arg = '-t' ifTrue: [display_f := 1].
 	].
 
+" Display encoding table "
 (display_f = 1) ifTrue: [
 	" Try to open file "
 	f_name := Smalltalk arguments at: Smalltalk arguments size.
@@ -287,22 +290,26 @@ pq := SortedCollection new.
 	freqtable keysAndValuesDo: [:key :value |
 		(value notNil and: [value > 0]) ifTrue: [
 			|node|
+			"stdout << 'value=' << value << nl."
 			node := Leaf new: key asCharacter count: value.
+			"node inorder: [:char :string |
+				stdout << '[' << char << ']=' << string << nl.
+			] prefix: ''."
 			pq add: node.
 		]
 
 	].
 
-	freqtable keysAndValuesDo: [:key :value |
+	"freqtable keysAndValuesDo: [:key :value |
 		(value notNil and: [value > 0]) ifTrue: [
 			stdout << 'key: ' << key asCharacter visible << ', val: ' << value << nl.
 		]
-	].
+	]."
 
 	" print pq, for debug "
 	"stdout << pq << nl."
 
-	"(c) building the tree out of the pq"
+	"(c) building the encode tree out of the pq"
 	[pq size > 1] whileTrue: [
 		|left right new_tree|
 		left := pq removeFirst.
@@ -313,12 +320,127 @@ pq := SortedCollection new.
 				new_tree := Tree new: left char
 				count: left count + right count left: left right: right.
 				pq add: new_tree.
+				stdout << new_tree << nl << nl.
 			]
 		]
 	].
 	root_node := pq removeFirst.
 
+	stdout << nl << nl << nl.
+
+	stdout << root_node << nl.
+
 	"(d) Construct encoding string using DFS "
-	
+	root_node inorder: [:char :string |
+		"stdout << 'char: ' << char << ', str: ' << string << nl."
+		encoded_table at: (char asInteger) put: string.
+	] prefix: ''.
+
+	"(e) Format the encoding table "
+	encoded_table keysAndValuesDo: [:key :value |
+		(value notNil and: [value > 0]) ifTrue: [
+			count := freqtable at: key.
+			numDigits := (count floorLog: 10) + 1.
+			(key < 33 or: [key > 126]) ifTrue: [
+				numDigits := numDigits + 1.
+				(key = 256) ifTrue: [
+					stdout << 'EOF'.
+				]
+				ifFalse: [
+					stdout << 'x'.
+					(key < 16) ifTrue: [
+						stdout << '0'.
+					].
+
+					temp := key asInteger.
+					temp printOn: stdout base: 16.
+				].
+			]
+			ifFalse: [
+				stdout << ' ' << key asCharacter.
+			].
+
+			0 to: (8 - numDigits) do: [:i |
+				stdout << ' '.
+			].
+			stdout << count << '  ' << value << nl.
+		]
+	].
+]
+
+" Compress the file "
+(compress_f = 1) ifTrue: [
+	out_file_name := Smalltalk arguments at: Smalltalk arguments size.
+	in_file_name  := Smalltalk arguments at:
+						((Smalltalk arguments size) - 1).
+	in_file := FileStream open: in_file_name mode: FileStream read.
+	out_file := FileStream open: out_file_name mode: FileStream write.
+
+	" Build freqtable from our infile "
+	in_file buildTable: freqtable.
+
+	freqtable keysAndValuesDo: [:key :value |
+		(value notNil and: [value > 0]) ifTrue: [
+			|node|
+			node := Leaf new: key asCharacter count: value.
+			pq add: node.	
+		]
+	].
+
+	" Build encode tree"
+	[pq size > 1] whileTrue: [
+		|left right new_tree|
+		left := pq removeFirst.
+		(pq size > 0) ifTrue: [
+			right := pq removeFirst.
+			(left notNil and: [right notNil]) ifTrue: [
+				new_tree := Tree new: left char
+				count: left count + right count left: left right: right.
+				pq add: new_tree.	
+			]
+		]
+	].
+
+	root_node := pq removeFirst.
+	(root_node isLeaf = false) ifTrue: [
+		"Use DFS to build encoding string "
+		root_node inorder: [:char :string |
+			encoded_table at: (char asInteger) put: string.
+		] prefix: ''.
+
+		" Open bitstream for out_file "
+		out_stream := OutBits new: out_file.
+
+		" Write encoding tree to file "
+		root_node printTree: out_stream.
+
+		" Write last bit to signal 'eof'"
+		out_stream writeBit: 1.
+
+		" Write out encoded bytes "
+		in_file position: 0.
+		[in_file atEnd not] whileTrue: [
+			temp := encoded_table at: in_file next asInteger.
+			(1 to: temp size) do: [:i |
+				((temp at: i) asString = '0')
+					ifTrue: [out_stream writeBit: 0.]
+					ifFalse: [out_stream writeBit: 1.].
+			].
+		].
+
+		" Write eof encoding "
+		eof := encoded_table at: 256.
+		(1 to: eof size) do: [:i |
+			((eof at: i) asString = '0')
+				ifTrue: [out_stream writeBit: 0.]
+				ifFalse: [out_stream writeBit: 1.].
+		].
+
+		" pad out to byte size "
+		out_stream flushByte.					
+	].
 
 ]
+
+" Uncompress "
+
