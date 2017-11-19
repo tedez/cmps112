@@ -1,514 +1,534 @@
 #!/afs/cats.ucsc.edu/courses/cmps112-wm/usr/smalltalk/bin/gst -f
 
+
+execname := '$RCSfile: cmdline.st,v $' =~ '.*: (.*),v.*' at: 1.
+
+optD := false.
+optC := false.
+optT := false.
+optU := false.
+
 nl := Character nl.
+queue := SortedCollection new.
 
 FileStream extend [
-	nl := Character nl.
-	buildTable: table [
-		[self atEnd not] whileTrue: [
-			" NEXT GIVES US OUR STRING VALUE EXCEPT A NEWLINE "
-			" WHICH WE THEN CAST TO AN INT "
-			table incr: self next asInteger.
-		]
-	]
+   nl := Character nl.
+   catFile [
+      |count textline|
+      count := 0.
+      [self atEnd not] whileTrue: [
+         count := count + 1.
+         textline :=self nextLine.
+         count asString size to: 5 do: [:skip| stdout << ' '].
+         stdout << count << ': ' << textline << nl.
+      ]
+   ]
 ]
 
-Character extend [
-	isPrint [
-		^(Character space <= self) & (self <= $~)
-	]
-	visible [
-		self isPrint ifTrue: [^ '$', self asString]
-			     ifFalse: [^ self asInteger printStringRadix: 8]
-	]
-]
-
-""
-" OUTBITS: OPENS A FILE GIVEN AS THE FIRST ARG AND WRITES OUT BITS
-		   TO EITHER STDOUT OR A FILE. "
-		   "BITS -> STRING"
-""
-Object subclass: OutBits [
-	|bitIndex currentByte myStream|
-	OutBits class >> new [
-		self shouldNotImplement.
-	]
-	OutBits class >> new: fileStream [
-		|result|
-		result := super new.
-		result init: fileStream.
-		^ result
-	]
-	clearByte [
-		bitIndex := 8.
-		currentByte := 0.
-	]
-	init: fileStream [
-		myStream := fileStream.
-		self clearByte.
-	]
-	flushByte [
-		bitIndex = 8 ifFalse: [
-			myStream nextPutByte: currentByte.
-			self clearByte.
-		]
-	]
-	writeBit: bit [
-		currentByte := currentByte bitAt: bitIndex put: bit.
-		bitIndex := bitIndex - 1.
-		bitIndex = 0 ifTrue: [self flushByte].
-	]
-]
-
-""
-" BITSTREAM:  TAKES IN A STRING FROM A STREAM AND STORES IT'S 
-              BITS INTERNALLY IN NEXTBIT "
-              "STRING -> BITS"
-""
-
-Object subclass: BitStream [
-	|bitIndex byte myStream stringIndex writeIndex writeByte|
-	BitStream class >> new: fileStream [
-		|result|
-		result := super new.
-		result init: fileStream.
-		^result
-	]
-	init: fileStream [
-		myStream := fileStream.
-		bitIndex := 1.
-	]
-	nextBit [
-		bitIndex = 1 ifTrue: [
-			byte := myStream next.
-			bitIndex := 9.
-		].
-		bitIndex := bitIndex - 1.
-		^byte value bitAt: bitIndex
-	]
-
-	putBit: aBit [
-		writeIndex := writeIndex - 1.
-		writeByte := writeByte bitAt: writeIndex put: aBit.
-		writeIndex = 1 ifTrue: [
-		myStream nextPutByte: writeByte.
-			writeByte := 0.
-			writeIndex := 9.
-		].
-	]
-
-	putString: aString [
-		aString do: [:index|
-			(index asString = '0')
-				ifTrue: [self putBit: 0]
-				ifFalse: [self putBit: 1].
-		].
-	]
-
-	padZeros [
-		[writeIndex > 1 & writeIndex < 9] whileFalse: [
-			self putBit: 0.
-			writeIndex := writeIndex - 1.
-		].
-	]
-
-	atEnd [
-		^bitIndex = 1 and: [myStream atEnd]
-	]
-	currByte [
-		^byte
-	]
-]
-
+"------------------------------------------------------"
+"Object classes"
+"------------------------------------------------------"
 
 Object subclass: ZeroArray [
-	|theArray|
+   |theArray|
 
-	" DISALLOWING CREATING A ZEROARRAY W/O SPECIFYING ARGS "
-	ZeroArray class >> new [
-		self shouldNotImplement.
-	]
+   ZeroArray class >> new [
+      self shouldNotImplement.
+   ]
 
-	ZeroArray class >> new: size [
-		|result|
-		result := super new. " NEEDED IN EVERY SUBCLASS CONSTRUCTOR. "
-		result init: size.
-		^ result " ^ OBJECTTORETURN "
-	]
+   ZeroArray class >> new: size [
+      |result|
+      result := super new.
+      result init: size.
+      ^ result
+   ]
 
-	init: size [
-		theArray := Array new: size.
-	]
+   init: size [
+      theArray := Array new: size.
+   ]
 
-	size [
-		^theArray size.
-	]
+   size [
+      ^ theArray size.
+   ]
 
-	at: index [
-		^theArray at: index + 1.
-	]
+   at: index [
+      ^ theArray at: index + 1.
+   ]
 
-	at: index put: value [
-		^theArray at: index + 1 put: value.
-	]
+   at: index put: value [
+      ^ theArray at: index + 1 put: value.
+   ]
 
-	incr: index [
-		(self at: index) isNil
-			ifTrue: [self at: index put: 0].
-		self at: index put: (self at: index) + 1.
-	]
+   incr: index [
+      (self at: index) isNil
+         ifTrue: [ self at: index put: 0].
+      self at: index put: (self at: index) + 1.
+   ]
 
-	keysAndValuesDo: aBlock [
-		(0 to: (self size) - 1) do: [:index |
-			aBlock value: index value: (self at: index).
-		]
-	]
+   keysAndValuesDo: aBlock [
+      (0 to: (self size) - 1) do: [:index |
+         aBlock value: index value: (self at: index).
+      ]
+   ]
 ]
 
+freqtable := ZeroArray new: 257.
+freqtable at:256 put:1.
 
 Object subclass: Leaf [
-	|char count|
+   |char count isLeaf|
+   char [ ^ char ]
+   count [ ^ count ]
+   isLeaf [^ isLeaf]
+   
+   Leaf class >> new [
+      self shouldNotImplement
+   ]
 
-	char [ ^char ]
-	count [ ^count ]
-	isLeaf [ ^true ]
+   Leaf class >> new: aChar count: aCount [
+      |result|
+      result := super new.
+      result setChar: aChar andCount: aCount.      
+      ^result
+   ]
 
-	Leaf class >> new [
-		self shouldNotImplement
-	]
+   setChar: aChar andCount: aCount [
+      char := aChar.
+      count := aCount.
+      isLeaf:=true.
+   ]
 
-	Leaf class >> new: aChar count: aCount [
-		|result|
-		result := super new.
-		result setChar: aChar andCount: aCount.
-		^result
-	]
+   <= other [
+      ^ (count < other count)
+      | ((count = other count) & (char <= other char))
+   ]
 
-	setChar: aChar andCount: aCount [
-		char := aChar.
-		count := aCount.
-	]
+   printBase: aStream [
+      ^ aStream << self class << '(' << char << ',' << count
+   ]
 
-	<= other [
-		^ (count < other count)
-		"
-			&,|     - NONLAZY EVAL
-			AND, OR - LAZY EVAL
-		"
-		" IF THE CHARACTER COUNTS ARE THE SAME,
-		  USE THE ASCII CHAR VALUE AS THE TIE-BREAKER "
-		| ((count = other count) & (char <= other char))
-	]
+   printOn: aStream [
+      (self printBase: aStream) << ')'.
+   ]
 
-	printBase: aStream [
-		|FixVimHighlighting|
-		^ aStream << self class << '(' << char << ',' << count
-	]
-
-	printOn: aStream [
-		(self printBase: aStream) << ')'.
-	]
-
-	printTree: outbits [
-		outbits writeBit: 0.
-
-		8 to: 1 by: -1 do: [:index |
-			outbits writeBit: ((self char asInteger) bitAt: index)].
-
-		char asInteger = 0 ifTrue: [
-			outbits writeBit: 0.].
-
-		char asInteger = 256 ifTrue: [
-			outbits writeBit: 1.].
-	]
-
-	inorder: visitor prefix: string [
-		visitor value: char value: string.
-	]
+   inorder: visitor prefix: string [
+      visitor value: char value: string.
+   ]
+   
+   postorder: visitor [
+      visitor  value:char value: isLeaf.
+   ]
 ]
 
 Leaf subclass: Tree [
-	|left right|
+   |left right|
 
-	isLeaf [ ^false ]
+   Tree class >> new: aChar count: aCount [
+      self shouldNotImplement
+   ]
 
-	Tree class >> new: aChar count: aCount [
-		self shouldNotImplement
-	]
+   Tree class >> new: aChar count: aCount left: aLeft right: aRight [
+      |result|
+      result := super new: aChar count: aCount.
+      result setLeft: aLeft andRight: aRight.
+      ^ result
+   ]
 
-	right [ ^right ]
-	left [ ^left ]
+   setLeft: aLeft andRight: aRight [
+      left := aLeft.
+      right := aRight.
+      isLeaf:=false.
+   ]
 
-	Tree class >> new: aChar count: aCount left: aLeft right: aRight [
-		|result|
-		result := super new: aChar count: aCount.
-		result setLeft: aLeft andRight: aRight.
-		^ result
-	]
-	
+   left  [ ^ left]
+   right [ ^ right]
 
-	setLeft: aLeft andRight: aRight [
-		left := aLeft.
-		right := aRight.
-	]
+   printOn: aStream [
+      (self printBase: aStream) << ',' << left << ',' << right << ')'.
+   ]
 
-	printOn: aStream [
-		(self printBase: aStream) << ',' << left << ',' << right << ')'.
-	]
-
-	printTree: outbits [
-		" SEND THE LEFT SIDE OF THE TREE TO OUTBITS "
-		left printTree: outbits.
-		" SEND THE RIGHT SIDE OF THE TREE TO OUTBITS "
-		right printTree: outbits.
-		outbits writeBit: 1.
-	]
-
-	inorder: visitor prefix: string [
-		left inorder: visitor prefix: string, '0'.
-		right inorder: visitor prefix: string, '1'.
-	]
-
+   inorder: visitor prefix: string [
+      left inorder: visitor prefix: string, '0'.
+      right inorder: visitor prefix: string, '1'.
+   ]
+   
+   postorder: visitor[      
+      left postorder: visitor .
+      right postorder: visitor .  
+      visitor value: char value:isLeaf.
+   ]
 ]
 
+Character extend [
+   isPrint [
+      ^ (Character space <= self) & (self <= $~)
+   ]
+   visible [
+      self isPrint ifTrue: [^  self asString]
+                   ifFalse: [^ self asInteger printStringRadix: 8]
+   ]
+]
 
+"Object Class: Outbits to outputfile"
+Object subclass: OutBits [
+   |bitIndex currentByte myStream|
+   OutBits class >> new [
+      self shouldNotImplement.
+   ]
+   OutBits class >> new: fileStream [
+      |result|
+      result := super new.
+      result init: fileStream.
+      ^result
+   ]
+   clearByte [
+      bitIndex := 8.
+      currentByte := 0.
+   ]
+   init: fileStream [
+      myStream := fileStream.
+      self clearByte.
+   ]
+   flushByte [
+         myStream nextPutByte: currentByte.
+         self clearByte.
 
-" ======== MAIN ======== "
+   ]
+   writeBit: bit [
+      currentByte := currentByte bitAt: bitIndex put: bit.
+      bitIndex := bitIndex - 1.
+      bitIndex = 0 ifTrue: [
+        self flushByte].
+   ]
+]
 
-|debug_f compress_f uncompress_f display_f f_name
-in_file out_file in_stream out_stream encoded_table root_node|
+"Object class: reads bits from inputfile"
+Object subclass: BitStream [
+   |bitIndex byte myStream|
+   BitStream class >> new: fileStream [
+      |result|
+      result := super new.
+      result init: fileStream.
+      ^result
+   ]
+   init: fileStream [
+      myStream := fileStream.
+      bitIndex := 1.
+   ]
+   nextBit [
+      bitIndex = 1 ifTrue: [
+         byte := myStream next.
+         bitIndex := 9.
+      ].
+      bitIndex := bitIndex - 1.
+      ^byte value bitAt: bitIndex
+   ]
+   atEnd [
+      ^bitIndex = 1 and: [myStream atEnd]
+   ]
+]
 
-debug_f      := 0.
-compress_f   := 0.
-uncompress_f := 0.
-display_f    := 0.
-in_file      := ''.
-out_file     := stdout.
-f_name       := ''.
+"------------------------------------------------------"
+"Main: vars, opts, and set flags | comp,decomp"
+"------------------------------------------------------"
+|inputfile readfile outputfile dcpfile outfilename argc|
+argc:=0.
 
-freqtable := ZeroArray new: 257.
-freqtable at: 256 put: 1.
-encoded_table := ZeroArray new: 257.
+Smalltalk arguments: '-d -t -c -u'
+do: [:opt :arg |
 
-" PRIORITY QUEUE FOR DECODING TREE. "
-pq := SortedCollection new.
+   (opt = $d) ifTrue: [ optD := true. ].
+   (opt = $t) ifTrue: [ optT := true. ].
+   (opt = $c) ifTrue: [ optC := true. ].
+   (opt = $u) ifTrue: [ optU := true. ].
 
-" START PARSING CMD LINE ARGS "
-(1 to: Smalltalk arguments size) do: [:index | 
-	arg := (Smalltalk arguments at: index).
-	(arg includes: $-) ifTrue: [
-		(arg includes: $d) ifTrue: [debug_f := 1].
-		(arg includes: $c) ifTrue: [compress_f := 1].
-		(arg includes: $u) ifTrue: [uncompress_f := 1].
-		(arg includes: $t) ifTrue: [display_f := 1].
-	] ifFalse: [
-		" If the arguments don't have a hyphen, then they
-		  are assumed to be io files. "
-	    (in_file isEmpty) ifTrue: [
-	    	in_file := arg.
-	    ] ifFalse: [
-	    	out_file := arg.
-	    ]
-	]
+  (arg ~= nil) ifTrue: [
+    
+     argc = 0 
+        ifTrue:[
+          optD ifTrue:[
+          stdout <<'input filename: ' << arg <<nl.].
+
+          inputfile := FileStream open: arg
+                    mode: FileStream read.
+          readfile := FileStream open: arg
+                    mode: FileStream read.
+         ]
+
+        ifFalse:[
+           optD ifTrue:[
+           stdout <<'output filename: ' << arg <<nl.].
+            outputfile := FileStream open: arg
+                       mode: FileStream write.].
+  
+     argc := argc + 1.
+   ].
 ].
 
-|read_file write_file|
-read_file := FileStream open: in_file mode: FileStream read.
-write_file := FileStream open: out_file mode: FileStream write.
+"Creates encode table"
+|tree ExitStatus|
+ExitStatus:=0.
+optU ifFalse:[
+    encodeTable := ZeroArray new: 257.
 
-" Build freqtable only if we're not uncompressing. "
-(uncompress_f = 0) ifTrue: [
-	read_file buildTable: freqtable.
+[inputfile atEnd not] whileTrue: [
+   |refChar|
+   refChar := inputfile next asInteger.
+   freqtable incr: refChar.
 ].
 
-"(B) ADD ALL ELEMENTS IN FREQTABLE TO OUR PQ "
-	" SINCE THE PQ IS A SORTEDCOLLECTION, IT'S ALREADY SORTED
-	  IN ASCENDING ORDER! HOW NEAT IS THAT? "
-(uncompress_f = 0) ifTrue: [
-	(0 to: freqtable size - 1) do: [:index |
-		|aLeaf aCount aChar|
-		aCount := freqtable at: index.
-		aCount isInteger ifTrue: [
-			aChar := index asCharacter.
-			aLeaf := Leaf new: aChar count: aCount.
-			pq add: aLeaf.
-		].
-	].	
+freqtable keysAndValuesDo: [:key :count |
+   (count notNil and: [count > 0]) ifTrue: [
+      queue add: (Leaf new: key count: count).
+   ]
 ].
 
-"(C) BUILDING THE ENCODE TREE OUT OF THE PQ"
-(uncompress_f = 0) ifTrue: [
-	[pq size > 1] whileTrue: [
-		|left right new_tree|
-		left := pq removeFirst.
+[queue size >1 ] whileTrue: [
+   |leftchild rightchild|
+   
+   leftchild := queue removeFirst.
+   rightchild := queue removeFirst.
+   newtree := ( Tree new: (leftchild char)
+                      count: (leftchild count) +  (rightchild count)
+                      left: leftchild right: rightchild).
+   queue add: newtree.
+].
+tree:=queue removeFirst.
 
-		(pq size > 0) ifTrue: [
-			right := pq removeFirst.
-			(left notNil and: [right notNil]) ifTrue: [
-				new_tree := Tree new: left char
-				count: left count + right count left: left right: right.
-				pq add: new_tree.
-			]
-		]
-	].
-	root_node := pq removeFirst.
+
+tree inorder: [:char :string |
+   encodeTable at: char put: string.
+] prefix: ''.
+
+binarytree:=''.
+tree postorder: [:char :isLeaf |
+
+   isLeaf  ifFalse:[binarytree:=binarytree,'1'.]
+                ifTrue:[
+                   bin:=''.
+                   char = 256
+                        ifTrue:[bin:='000000001']
+                        ifFalse:[
+                           char=0 ifTrue:[bin:='000000000']
+                                  ifFalse:[
+                                     8 to:1 by: -1 do:[:i|
+                                     bin:=bin,((char bitAt:i)
+                                                       printString).
+                                   ]
+                        ].               
+                 ].
+                 binarytree:=(binarytree,'0',bin).
+              ].
 ].
 
-"(D) CONSTRUCT ENCODING STRING USING DFS "
-(uncompress_f = 0) ifTrue: [
-	root_node inorder: [:char :string |
-		"stdout << 'char: ' << char << ', str: ' << string << nl."
-		encoded_table at: (char asInteger) put: string.
-	] prefix: ''.
-].
+optT ifTrue:[
+     stdout <<nl<< 'Decode tree' << nl.
+     stdout << tree << nl<<nl.
+     stdout <<'Binary decode tree: '<<nl<<binarytree << nl.
 
-
-" DISPLAY ENCODING TABLE (-t)"
-(display_f = 1) ifTrue: [
-	"(E) FORMAT THE ENCODING TABLE "
-	encoded_table keysAndValuesDo: [:key :value |
-		(value notNil and: [value > 0]) ifTrue: [
-			count := freqtable at: key.
-			numDigits := (count floorLog: 10) + 1.
-			(key < 33 or: [key > 126]) ifTrue: [
-				numDigits := numDigits + 1.
-				(key = 256) ifTrue: [
-					stdout << 'EOF'.
-				]
-				ifFalse: [
-					stdout << 'x'.
-					(key < 16) ifTrue: [
-						stdout << '0'.
-					].
-
-					temp := key asInteger.
-					temp printOn: stdout base: 16.
-				].
-			]
-			ifFalse: [
-				stdout << ' ' << key asCharacter.
-			].
-
-			0 to: (8 - numDigits) do: [:i |
-				stdout << ' '.
-			].
-			stdout << count << '  ' << value << nl.
-		]
-	].
-	read_file close.
-].
-
-" COMPRESS THE FILE "
-(compress_f = 1) ifTrue: [
-	|encoded_string|
-	aBitStream := BitStream new: write_file.
-
-	read_file reset.
-
-	root_node printTree: aBitStream.
-	aBitStream putBit: 1.
-
-	[read_file atEnd not] whileTrue: [
-		|index|
-		index := read_file next asInteger.
-		encoded_string := (encoded_table at: index).
-		aBitStream putString: encoded_string.
-	].
-	encoded_string := encoded_table at: 256.
-	aBitStream putString: encoded_string.
-	aBitStream padZeros.
-	read_file close.
-	write_file close.
-].
-
-" UNCOMPRESS "
-(uncompress_f = 1) ifTrue: [
-	"|built decoded byte node tree|"
-	out_BitStream := BitStream new: read_file.
-	in_BitStream  := BitStream new: write_file.
-
-	stack := OrderedCollection new.
-	built := 0.
-	decoded := nil.
-
-	[(out_BitStream atEnd not) & (built = 0)] whileTrue: [
-		|aChar|
-
-		aChar := out_BitStream nextBit.
-		(aChar = 0) ifTrue: [
-			rChar := 0.
-			base := 1.
-
-			(1 to: 8) do: [:i |
-				|cBit|
-				cBit := out_BitStream nextBit.
-				(cBit = 1) ifTrue: [
-					rChar := rChar + base.
-				].
-				base := base * 2.
-			].
-
-			rChar = 0 ifTrue: [
-				|cBit|
-				cBit := out_BitStream nextBit.
-				(cBit = 1) ifTrue: [
-					stack addFirst: (Leaf new: 256 asCharacter count: 1).
-				] ifFalse: [
-					stack addFirst: (Leaf new: 0 asCharacter count: 1).
-				].
-			] ifFalse: [
-				stack addFirst: (Leaf new: rChar asCharacter count: 1).
-			].
-		] ifFalse: [
-			(stack size > 0) ifTrue: [
-				right := stack removeFirst.
-				(stack size = 0) ifTrue: [
-					decoded := right.
-					built := 1.
-				] ifFalse: [
-					left := stack removeFirst.
-					stack addFirst: (Tree new: (left char) count: 1 left: left right: right).
-				].
-			].
-		].
+     stdout <<nl<< 'Encode table' << nl.
+     encodeTable keysAndValuesDo: [:key :count |
+     (count notNil and: [count > 0]) ifTrue: [
+        stdout <<  key asCharacter visible << '     '
+               << (freqtable at: key) <<'    '<<count
+               << nl.
+     ].
     ].
+].
 
-    tempTree := decoded.
-	eof := false.
-	[(out_BitStream atEnd not) & (eof = false)] whileTrue: [
-	  |enbit|
 
-	  enbit := out_BitStream nextBit.
+"------------------------------------------------------"
+"Compression"
+"------------------------------------------------------"
+optC  ifTrue:[ 
 
-	  enbit = 0 ifTrue: [
-	     tempTree  isLeaf ifTrue: [
-	        tempTree char asInteger = 256 ifTrue: [eof = true.].
-	     ] ifFalse: [
-	       tempTree := tempTree left.
-	       tempTree  isLeaf ifTrue: [
-	          tempTree char asInteger = 256 ifTrue: [ eof = true.]
-	             ifFalse: [
-	                write_file << tempTree char.
-	             ].
-	           tempTree := decoded.
-	        ].
-	     ].
-	  ] ifFalse: [
-	     tempTree isLeaf ifTrue: [
-	        tempTree char asInteger = 256 ifTrue: [eof := true.].
-	     ] ifFalse: [
-	        tempTree := tempTree right.
-	        tempTree isLeaf ifTrue: [
-	           tempTree char asInteger = 256 ifTrue: [ eof := true.]
-	              ifFalse: [
-	                 write_file << tempTree char.
-	              ].
-	           tempTree := decoded.
-	        ].
-	     ].
-	  ].
-	].
+outputfile~=nil ifTrue:[
+   
+    optD ifTrue: [
+    stdout <<nl<< 'optC = '<<optC 
+          <<'outputfile'<< nl.].
+  
+   outBytes := OutBits new: outputfile.    
+   1 to: (binarytree size) by: 1 do: [:index |
+         bit:= ((binarytree at: index) asInteger) - 48.
+         outBytes writeBit: bit.
+         ].
 
-	read_file close.
-	write_file close.
+   outBytes writeBit: 1.
+   [readfile atEnd not] whileTrue: [
+      |ordChar|
+       ordChar := readfile next asInteger.
+       code:= (encodeTable at: ordChar). 
+       1 to: (code size) by: 1 do: [:index |
+         bit:= ((code at: index) asInteger) - 48.
+         outBytes writeBit: bit.
+          ].
+       ].
+
+   eof:= (encodeTable at: 256).
+   1 to: (eof size) by: 1 do: [:index |
+         bit:= ((eof at: index) asInteger) - 48.
+         outBytes writeBit: bit.].     
+   outBytes flushByte.
+]
+ifFalse:[
+   optD ifTrue:[
+   stdout <<nl<< 'optC = '<<optC
+              <<'no outputfile'<< nl.].
+    
+   stdout <<nl<< 'Encoded input to binary' << nl.
+   stdout <<binarytree<<1.      
+    
+     [readfile atEnd not] whileTrue: [
+           |ordChar|
+           ordChar := readfile next asInteger.
+           code:= (encodeTable at: ordChar).
+           stdout <<code. 
+        ].
+      eof:= (encodeTable at: 256).
+      stdout<<eof.
+   ].    
+ ].
+].
+
+
+"------------------------------------------------------"
+"Decompression"
+"------------------------------------------------------"
+(optU) ifTrue:[
+   |iseof outBytes stack|
+   iseof:=false.
+
+   optD ifTrue: [
+   stdout<<'Decompression'<<nl.].
+
+   outBytes := OutBits new: outputfile.  
+   stack := OrderedCollection new.
+   fileBits := BitStream new: inputfile.
+   treebuilt:=false.
+   reconstructedTree:=''.
+   node:=''.   
+   
+   "Reads bit from input"
+   [(fileBits atEnd not) & (iseof not)] whileTrue: [
+
+     treenode:=fileBits nextBit.
+     leafchar:=0.
+
+     treebuilt ifFalse:[
+
+        "Inserts input to leaf"
+        treenode=0 ifTrue:[
+
+           8 to:1 by:-1 do:[:i|
+              bit:=fileBits nextBit.
+              
+            leafchar:=leafchar bitAt:i put:bit.
+           ].
+
+           leafchar=0 ifTrue:[
+             specialbit:=fileBits nextBit.
+             specialbit=1 ifTrue:[
+              leafchar:=leafchar bitAt:9 put:1.
+             ].
+           ].
+         
+          stack add: (Leaf new: leafchar count: '').
+
+        ].
+
+        "builds tree from leaves" 
+        treenode=1 ifTrue:[
+                 
+           stack size>1 ifTrue:[
+           rightchild:=stack removeLast.
+           leftchild:=stack removeLast.
+           
+           newtree := (Tree new: -1
+                      count: ''
+                      left: leftchild right: rightchild).
+             stack add: newtree.
+           ] ifFalse:[
+             treebuilt:=true.
+             
+             reconstructedTree:=stack removeLast.
+             node:=reconstructedTree.
+           ].
+        ].
+     ]
+     "if tree is built, decodes data"
+     ifTrue:[
+       node isLeaf ifTrue:[
+                ((node char)=256) ifTrue:[
+                    iseof:=true.
+                    ] ifFalse:[
+                     stdout nextPut: (Character value: (node char)).
+                  node:=reconstructedTree.].
+               ]ifFalse:[
+        treenode=0 ifTrue:[
+                
+                node:=node left.
+
+                node isLeaf ifTrue:[
+                iseof not ifTrue:[  
+                    ((node char)=256) ifTrue:[
+                    iseof:=true.
+
+
+                    ] ifFalse:[
+
+                     outputfile=nil ifTrue:[
+
+                     stdout nextPut: (Character value: (node char)).
+                     ]
+                     ifFalse:[
+                        8 to: 1 by: -1 do: [:index |
+                           bit:= (node char) bitAt: index.
+                           outBytes writeBit: bit.
+                        ].
+                     ].
+                     node:=reconstructedTree.
+
+                    ].
+                ].
+               ]
+           ] ifFalse:[
+               
+               node:=node right.
+
+               node isLeaf ifTrue:[
+                iseof not ifTrue:[
+                    ((node char)=256) ifTrue:[
+                    iseof:=true.
+
+                    ] ifFalse:[
+
+                     outputfile=nil ifTrue:[
+
+                     stdout nextPut: (Character value: (node char)).
+                            ]
+                     ifFalse:[
+                        8 to: 1 by: -1 do: [:index |
+                           bit:= (node char) bitAt: index.
+                           outBytes writeBit: bit.
+                        ].
+                     ].
+                    node:=reconstructedTree.
+
+                    ].
+                ].
+               ]
+           ].
+       ].
+     ].
+   ].
+].  
+
+
+inputfile close.
+outputfile~=nil ifTrue:[
+outputfile close.
+].
+optD ifTrue: [
+stdout<<nl<<'Exit Status: '<<ExitStatus<<nl.
 ].
