@@ -1,46 +1,13 @@
 #!/afs/cats.ucsc.edu/courses/cmps112-wm/usr/smalltalk/bin/gst -f
 
 |is_debug is_compress is_uncompress is_display 
-file_name inFile root outFile istream ostream encoding ptr oFile| 
+file_name inFile root outFile istream ostream encoding ptr oFile has_ofile| 
+
+has_ofile := false.
+
 nl := Character nl.
 
-"CHECKING THE CORRECT NUMBER OF ARGUMENTS"
-(Smalltalk arguments size) > 3 ifTrue: [
-       status := 127.
-       stderr << 'Usage: ' << 'Too many arguments ' << status << nl.
-       ObjectMemory quit: status.
-   ].
-(Smalltalk arguments size) < 2 ifTrue: [
-       status := 127.
-       stderr << 'Usage: ' << 'Too few arguments ' << status << nl.
-       ObjectMemory quit: status.
-   ].
 
-" CREATING I/O STREAMS "
-outFile := ''.
-(Smalltalk arguments size) = 3 ifTrue: [
-   stdout << 'Arg length: ' << (Smalltalk arguments size) << nl.
-   outFile := (Smalltalk arguments at: 3).
-   stdout << 'output file name: ' << outFile << nl.
-   oFile := FileStream open: outFile mode: FileStream write. ]. 
-
-" DEFAULTS TO STDOUT IF NO OUTFILE SPECIFIED"
-(Smalltalk arguments size) = 2 ifTrue: [ 
-   stdout << 'Arg length: ' << (Smalltalk arguments size) << nl.
-   oFile := stdout. 
-].
-
-inFile := ''.
-inFile := (Smalltalk arguments at: 2).
-stdout << 'input file name ---> ' << inFile << nl.
-
-|iFile|
-iFile := FileStream open: inFile mode: FileStream read.
-"iFile catFile."
-iReset := [
-    iFile close.
-    iFile := FileStream open: inFile mode: FileStream read.
-].
 
 FileStream extend [
   nl := Character nl.
@@ -255,6 +222,72 @@ Leaf subclass: Tree [
 
 ]
 
+"
+=============================================
+                  MAIN
+=============================================
+"
+"CHECKING THE CORRECT NUMBER OF ARGUMENTS"
+(Smalltalk arguments size) > 3 ifTrue: [
+       status := 127.
+       stderr << 'Usage: ' << 'Too many arguments ' << status << nl.
+       ObjectMemory quit: status.
+   ].
+(Smalltalk arguments size) < 2 ifTrue: [
+       status := 127.
+       stderr << 'Usage: ' << 'Too few arguments ' << status << nl.
+       ObjectMemory quit: status.
+   ].
+
+" CREATING I/O STREAMS "
+outFile := ''.
+(Smalltalk arguments size) = 3 ifTrue: [
+   has_ofile := true.
+   stdout << 'Arg length: ' << (Smalltalk arguments size) << nl.
+   outFile := (Smalltalk arguments at: 3).
+   stdout << 'output file name: ' << outFile << nl.
+   oFile := FileStream open: outFile mode: FileStream write. ]. 
+
+" DEFAULTS TO STDOUT IF NO OUTFILE SPECIFIED"
+(Smalltalk arguments size) = 2 ifTrue: [ 
+   stdout << 'Arg length: ' << (Smalltalk arguments size) << nl.
+   oFile := stdout. 
+].
+
+inFile := ''.
+inFile := (Smalltalk arguments at: 2).
+stdout << 'input file name ---> ' << inFile << nl.
+
+|iFile|
+iFile := FileStream open: inFile mode: FileStream read.
+"iFile catFile."
+iReset := [
+    iFile close.
+    iFile := FileStream open: inFile mode: FileStream read.
+].
+
+
+"frequency table"
+freqtable := ZeroArray new: 257.
+"encoding table, holds huffman encoding for each char"
+encoding := ZeroArray new: 257.
+"priority queue for building tree"
+priority := SortedCollection new.
+"manually insert EOF"
+freqtable at: 256 put: 1.
+
+
+"parse command line args"
+(1 to: Smalltalk arguments size) do: 
+    [:index |
+        arg := (Smalltalk arguments at: index).
+        arg = '-d' ifTrue: [is_debug := 1].
+        arg = '-c' ifTrue: [is_compress := 1].
+        arg = '-u' ifTrue: [is_uncompress := 1].
+        arg = '-t' ifTrue: [is_display := 1].
+    ].
+
+
 "display encoding table"
 (is_display = 1) ifTrue:
 [
@@ -343,7 +376,7 @@ Leaf subclass: Tree [
 "compress the file"
 (is_compress = 1) ifTrue:
 [
-
+    stdout << 'got to compress' << nl.
     "build frequency table"
     iFile buildTable: freqtable.
 
@@ -355,6 +388,7 @@ Leaf subclass: Tree [
             |node|
             node := Leaf new: key asCharacter count: value.
             priority add: node.
+            stdout << '[' << key << ']= ' << value << nl.
         ]
     ].
 
@@ -424,7 +458,16 @@ Leaf subclass: Tree [
 "uncompress file"
 (is_uncompress = 1) ifTrue:
 [
-    |treeBuilt decoded byte node tree|
+    |treeBuilt decoded byte node tree ostream|
+
+    " ADD CHECK FOR HAS_OFILE HERE "
+    ostream := stdout.
+    (has_ofile = true) ifTrue: [
+        " Create reference to FileStream oFile "
+        " This lets us keep our nextPutByte generic and
+          bypass additional checks "
+        ostream := oFile.
+    ].
 
     (iFile atEnd) ifFalse:
     [
@@ -540,7 +583,7 @@ Leaf subclass: Tree [
                     ]
                     ifFalse:
                     [
-                        stdout nextPutByte: c.
+                        ostream nextPutByte: c.
                         ptr := tree.
 
                     ].
