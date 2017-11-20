@@ -1,7 +1,8 @@
 #!/afs/cats.ucsc.edu/courses/cmps112-wm/usr/smalltalk/bin/gst -f
 
 |is_debug is_compress is_uncompress is_display 
-file_name inFile root outFile istream ostream encoding ptr oFile has_ofile| 
+file_name inFile root outFile istream ostream 
+encoding ptr oFile has_ofile| 
 
 has_ofile := false.
 
@@ -586,3 +587,4 @@ freqtable at: 256 put: 1.
     ].
 
 ]
+
