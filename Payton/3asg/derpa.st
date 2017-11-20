@@ -1,7 +1,6 @@
 "#!/AFS/CATS.UCSC.EDU/COURSES/CMPS112-WM/USR/SMALLTALK/BIN/GST -F"
 
 nl := Character nl.
-
 FileStream extend [
   nl := Character nl.
    buildTable: table [
@@ -271,7 +270,35 @@ freqtable at: 256 put: 1.
         ].
     ]
 ].
+"
+Smalltalk arguments: '-d -t -c -u' do: [:opt :arg |
+   (opt = $d) ifTrue: [ is_debug := 1 ].
+   (opt = $t) ifTrue: [ is_compress := 1 ].
+   (opt = $c) ifTrue: [ is_uncompress := 1 ].
+   (opt = $u) ifTrue: [ is_display := 1 ].
 
+  (arg ~= nil) ifTrue: [
+     (argc = 0) ifTrue:[
+          optD ifTrue:[
+              stdout <<'input filename: ' << arg <<nl.].
+
+              inputfile := FileStream open: arg
+                        mode: FileStream read.
+              readfile := FileStream open: arg
+                        mode: FileStream read.
+         ]
+
+        ifFalse:[
+           optD ifTrue:[
+           stdout <<'output filename: ' << arg <<nl.].
+            outputfile := FileStream open: arg
+                       mode: FileStream write.].
+  
+     argc := argc + 1.
+   ].
+].
+
+"
 "DISPLAY ENCODING TABLE"
 (is_display = 1) ifTrue: [
     infile_name := Smalltalk arguments at: Smalltalk arguments size.

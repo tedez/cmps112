@@ -1,6 +1,42 @@
 #!/afs/cats.ucsc.edu/courses/cmps112-wm/usr/smalltalk/bin/gst -f
 
+"
+Michael Le
+mjle@ucsc.edu
+CMPS 112 - asg3
+"
+
+"
+USAGE
+hzip.st -dtcu inputfile [outputfile]
+
+Exactly one of the options -t, -c, or -u is required.
+-d Debug information is printed for the benefit of the 
+application author. Exact details are not specified.
+
+-t The compression algorithm is activated, and the decoding tree is 
+printed to the standard output. 
+The output filename may not be specified.
+
+-c The input file is compressed and written to the output file, 
+if specified, or to the standard output, if not.
+
+-u The input file is assumed to be compressed, and is uncompressed, 
+written to the output file, if specified, 
+or to the standard output, if not.
+"
+
+"Defining execname, boolean for opts, etc"
+
+execname := '$RCSfile: cmdline.st,v $' =~ '.*: (.*),v.*' at: 1.
+
+optD := false.
+optC := false.
+optT := false.
+optU := false.
+
 nl := Character nl.
+queue := SortedCollection new.
 
 FileStream extend [
    nl := Character nl.
@@ -11,12 +47,15 @@ FileStream extend [
          count := count + 1.
          textline :=self nextLine.
          count asString size to: 5 do: [:skip| stdout << ' '].
-         "stdout << count << ': ' << textline << nl."
+         stdout << count << ': ' << textline << nl.
       ]
    ]
 ]
 
-"OBJECT CLASSES"
+"------------------------------------------------------"
+"Object classes"
+"------------------------------------------------------"
+
 Object subclass: ZeroArray [
    |theArray|
 
@@ -60,6 +99,9 @@ Object subclass: ZeroArray [
    ]
 ]
 
+freqtable := ZeroArray new: 257.
+freqtable at:256 put:1.
+
 Object subclass: Leaf [
    |char count isLeaf|
    char [ ^ char ]
@@ -89,7 +131,6 @@ Object subclass: Leaf [
    ]
 
    printBase: aStream [
-   ||
       ^ aStream << self class << '(' << char << ',' << count
    ]
 
@@ -219,15 +260,6 @@ Object subclass: BitStream [
 "------------------------------------------------------"
 |inputfile readfile outputfile dcpfile outfilename argc|
 argc:=0.
-
-optD := false.
-optC := false.
-optT := false.
-optU := false.
-queue := SortedCollection new.
-
-freqtable := ZeroArray new: 257.
-freqtable at:256 put:1.
 
 Smalltalk arguments: '-d -t -c -u'
 do: [:opt :arg |
