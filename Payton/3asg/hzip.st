@@ -1,15 +1,6 @@
 #!/afs/cats.ucsc.edu/courses/cmps112-wm/usr/smalltalk/bin/gst -f
 
-
-execname := '$RCSfile: cmdline.st,v $' =~ '.*: (.*),v.*' at: 1.
-
-optD := false.
-optC := false.
-optT := false.
-optU := false.
-
 nl := Character nl.
-queue := SortedCollection new.
 
 FileStream extend [
    nl := Character nl.
@@ -20,7 +11,7 @@ FileStream extend [
          count := count + 1.
          textline :=self nextLine.
          count asString size to: 5 do: [:skip| stdout << ' '].
-         stdout << count << ': ' << textline << nl.
+         "stdout << count << ': ' << textline << nl."
       ]
    ]
 ]
@@ -71,9 +62,6 @@ Object subclass: ZeroArray [
       ]
    ]
 ]
-
-freqtable := ZeroArray new: 257.
-freqtable at:256 put:1.
 
 Object subclass: Leaf [
    |char count isLeaf|
@@ -233,6 +221,15 @@ Object subclass: BitStream [
 "------------------------------------------------------"
 |inputfile readfile outputfile dcpfile outfilename argc|
 argc:=0.
+
+optD := false.
+optC := false.
+optT := false.
+optU := false.
+queue := SortedCollection new.
+
+freqtable := ZeroArray new: 257.
+freqtable at:256 put:1.
 
 Smalltalk arguments: '-d -t -c -u'
 do: [:opt :arg |
