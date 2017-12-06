@@ -241,13 +241,19 @@ Leaf subclass: Tree [
    ].
 
 "parse command line args"
-(1 to: Smalltalk arguments size) do: 
-    [:index |
+(1 to: Smalltalk arguments size) do: [:index |
         arg := (Smalltalk arguments at: index).
-        arg = '-d' ifTrue: [is_debug := 1].
-        arg = '-c' ifTrue: [is_compress := 1].
-        arg = '-u' ifTrue: [is_uncompress := 1].
-        arg = '-t' ifTrue: [is_display := 1].
+        ((arg includes: $-) and: [(arg size) = 2]) ifTrue: [
+    arg = '-d' ifTrue: [is_debug := 1].
+    arg = '-c' ifTrue: [is_compress := 1].
+    arg = '-u' ifTrue: [is_uncompress := 1].
+    arg = '-t' ifTrue: [is_display := 1].
+  ]. ((arg includes: $-) and: [(arg size) > 2]) ifTrue: [
+         status := 127.
+         stderr << 'Usage: "' << arg << '" is not a valid option'
+          << nl << 'Valid options ---> (-c -d -t -u)' << nl.
+         ObjectMemory quit: status.
+  ]
     ].
 
 " CREATING I/O STREAMS "
@@ -587,4 +593,3 @@ freqtable at: 256 put: 1.
     ].
 
 ]
-
