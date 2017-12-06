@@ -1,26 +1,28 @@
 not( X ) :- X, !, fail.
 not( _ ).
 
-convert_to_degrees( degmin( Degrees, Minutes ), Degreesonly ) :-
-    Degreesonly is Degrees + Minutes / 60.
 
-calculate_distance( X1, Y1, X2, Y2, Hypotenuse ) :-
-    Hypotenuse is sqrt((X2 - X1)**2 + (Y2 - Y1)**2).
+convert_to_degrees( degmin( Deg, Mins ), ReturnDeg ) :-
+    ReturnDeg is Deg + Mins / 60.
+
+calculate_distance( X1, Y1, X2, Y2, ReturnDist ) :-
+    ReturnDist is sqrt((X2 - X1)**2 + (Y2 - Y1)**2).
 
 distance( Airport1, Airport2, DistanceMiles ) :-
     % GET LAT AND LON FOR INPUT AIRPORTS
     airport( Airport1, _, Latitude1, Longitude1 ),
     airport( Airport2, _, Latitude2, Longitude2 ),
-	% CONVERT LAT AND LONS TO SOLELY DEGREES 
+    % CONVERT LAT AND LONS TO SOLELY DEGREES 
     convert_to_degrees( Latitude1, Latdegrees1 ),
     convert_to_degrees( Latitude2, Latdegrees2 ),
     convert_to_degrees( Longitude1, Longdegrees1 ),
     convert_to_degrees( Longitude2, Longdegrees2 ),
-	% CALCULATE DISTANCE BEWTWEEN AIRPORTS 
-    calculate_distance( Latdegrees1, Longdegrees1, Latdegrees2, Longdegrees2,
-                DistanceDegrees ),
-	% CONVERT DEGREES TO MILES 
-    DistanceMiles is 69 * DistanceDegrees.
+    % CALCULATE DISTANCE BEWTWEEN AIRPORTS 
+    calculate_distance( Latdegrees1, Longdegrees1, Latdegrees2,
+     Longdegrees2, DistanceDegrees ),
+    % CONVERT DEGREES TO MILES 
+    LatGap is 69,
+    DistanceMiles is LatGap * DistanceDegrees.
 
 convert_to_hours( time( Hours, Mins ), Hoursonly ) :-
     Hoursonly is Hours + Mins / 60.
@@ -50,6 +52,7 @@ print_time( Hoursonly ) :-
  * */
 % FACT IF THE START AND END LOCATIONS ARE THE SAME
 findpath( End, End, _, [End], _ ).
+% FOR DIRECT FLIGHTS
 findpath( Curr, End, Visited, [[Curr, DepTime, ArrTime] | List],
           DepTimeInHM ) :-
     flight( Curr, End, DepTimeInHM ),
@@ -59,7 +62,8 @@ findpath( Curr, End, Visited, [[Curr, DepTime, ArrTime] | List],
     miles_to_hours( DistanceMi, DeltaTime ),
     ArrTime is DepTime + DeltaTime,
     ArrTime < 24.0, 
-	findpath( End, End, [End | Visited], List, _).
+
+    findpath( End, End, [End | Visited], List, _).
 % FOR CONNECTING FLIGHTS
 findpath( Curr, End, Visited, [[Curr, DepTime, ArrTime] | List],
           DepTimeInHM ) :-
@@ -70,12 +74,12 @@ findpath( Curr, End, Visited, [[Curr, DepTime, ArrTime] | List],
     miles_to_hours( DistanceMi, DeltaTime ),
     ArrTime is DepTime + DeltaTime,
     ArrTime < 24.0, 
-	flight( Next, _, NextDepTimeInHM ),
 
+    flight( Next, _, NextDepTimeInHM ),
     convert_to_hours( NextDepTimeInHM, NextDepTime ),
     TimeDiff is NextDepTime - ArrTime - 0.5,
     TimeDiff >= 0, 
-	findpath( Next, End, [Next | Visited], List, NextDepTimeInHM ).
+    findpath( Next, End, [Next | Visited], List, NextDepTimeInHM ).
 
 /*
  * * Write the given list using a certain form given departs/arrives
@@ -117,12 +121,12 @@ fly( Depart, Depart ) :-
 fly( Depart, Arrive ) :-
     airport( Depart, _, _, _ ),
     airport( Arrive, _, _, _ ),
-	% TWO INPUT AIRPORTS ARE IN DATABASE.PL
-	% SO WE ATTEMPT OT FIND A PATH BETWEEN THEM
+    % TWO INPUT AIRPORTS ARE IN DATABASE.PL
+    % SO WE ATTEMPT OT FIND A PATH BETWEEN THEM
     findpath( Depart, Arrive, [Depart], List, _ ),
     !, nl,
-	% IF WE HIT THIS POINT, WE HAVE FOUND A PATH & NEED TO 
-	% WRITE IT...FINDPATH DID NOT FAIL
+    % IF WE HIT THIS POINT, WE HAVE FOUND A PATH & NEED TO 
+    % WRITE IT...FINDPATH DID NOT FAIL
     writepath( List ),
     true.
 fly( Depart, Arrive ) :-
