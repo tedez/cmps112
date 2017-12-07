@@ -1,3 +1,8 @@
+
+/*
+ * Function: Distance between airports using haversine formula.
+ */
+
 haversine_radians( Lat1, Lon1, Lat2, Lon2, Distance ) :-
    Dlon is Lon2 - Lon1,
    Dlat is Lat2 - Lat1,
@@ -17,23 +22,25 @@ distance( Airport1, Airport2, Distance ) :-
    degmin_in_rads( Lat2, Lat2_float ),
    degmin_in_rads( Lon1, Lon1_float ),
    degmin_in_rads( Lon2, Lon2_float ),
-    %write('Lat 1, Lat2, Lon1, Lon2 as floats: '), nl,
-    %write(Lat1_float), nl, 
-    %write(Lat2_float), nl, 
-    %write(Lon1_float), nl, 
-    %write(Lon2_float), nl, 
+   % write('Lat 1, Lat2, Lon1, Lon2 as floats: '), nl,
+   % write(Lat1_float), nl, 
+   % write(Lat2_float), nl, 
+   % write(Lon1_float), nl, 
+   % write(Lon2_float), nl, 
    haversine_radians( Lat1_float, Lon1_float, Lat2_float, Lon2_float,
                Distance).
-    write('Distance: '), write(Distance),nl,
+   % write('Distance: '), write(Distance),nl,
 
-% * Converts the flight miles into time.
-% * Plane flies at the constant speed of 500mph
+/*
+ * Converts the flight miles into time.
+ * Plane flies at the constant speed of 500mph
+ */
 
 % Gets the time in hours.
-hours_tot( time( Hours, Mins ), total_hours ) :-
-    total_hours is Hours + Mins / 60.
+hours_tot( time( Hours, Mins ), Hourstot ) :-
+    Hourstot is Hours + Mins / 60.
 
-% Calculates the time in hours given 500mph.
+% Calculates the time in hous given 500mph.
 hours_from_miles( Miles, Hours ) :-
     Hours is Miles / 500.
 
@@ -41,14 +48,14 @@ digsprint( Timedigits ) :-
     Timedigits < 10, print( 0 ), print( Timedigits ).
 digsprint( Timedigits ) :-
     Timedigits >= 10, print( Timedigits ).
-timeprint( total_hours ) :-
-    Minsdigits is floor( total_hours * 60 ),
+timeprint( Hourstot ) :-
+    Minsdigits is floor( Hourstot * 60 ),
     Hours is Minsdigits // 60,
     Mins is Minsdigits mod 60,
     digsprint( Hours ), print( ':' ), digsprint( Mins ).
 
 /*
- * Prolog not.
+ * Prolog version of not.
  */
 
 not( X ) :- X, !, fail.
@@ -90,9 +97,9 @@ createflight( Prev, Terminal, Visited,
 
 
 % Write the flight list using a certain form given departs/arrives.
+
 writepath( [] ) :-
     nl.
-
 writepath( [[X, XDTime, XATime], Y | []] ) :-
     airport( X, Depart_Ext, _, _), airport( Y, Arrive_Ext, _, _),
     write( '     ' ), write( 'depart  ' ),
