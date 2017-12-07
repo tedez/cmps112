@@ -60,13 +60,6 @@ print_time( Hoursonly ) :-
 mph_to_hours( Miles, ReturnConvertedHours ) :- 
     ReturnConvertedHours is Miles / 500.
 
-/*
- * * Find paths from a departure airport to a destination airport.
- * * The path with the shortest distance is chosen.  
- * * The list returned contains lists of the airports with their 
- * * departure/arrival times.
- * */
-
 
 attempt_path_route( DestAP, DestAP, _, [DestAP], _ ).
 % CASE WHERE WE CAN FIND A DIRECT PATH FROM CURRENT 
@@ -100,32 +93,19 @@ path_output( [] ) :- nl.
 path_output( [[DepartAP, StartTime, ArrivalTime], DestAP | []] ) :-
     airport( DepartAP, Depart, _, _),
     airport( DestAP, Dest, _, _),
-    %write( '     ' ), write( 'depart  ' ),
-    %write( DepartAP ), write( '  ' ),
-    %write( Depart ),
     format('\tdepart\t%s\t%s', [DepartAP, Depart]),
     print_time( StartTime ), nl,
-    %write( '     ' ), write( 'arrive  ' ),
-    %write( DestAP ), write( '  ' ),
-    %write( Dest ),
     format('\tarrive\t%s\t%s', [DestAP, Dest]),
     print_time( ArrivalTime ), nl,
     !, true.
-path_output( [[DepartAP, StartTime, ArrivalTime], [DestAP, ADTime, AATime] | Rest] ) :-
+path_output( [[DepartAP, StartTime, ArrivalTime], [DestAP, DepTime, ArrTime] | Cdr] ) :-
     airport( DepartAP, Depart, _, _),
     airport( DestAP, Dest, _, _),
-    %write( '     ' ), write( 'depart  ' ),
-    %write( DepartAP ), write( '  ' ),
-    %write( Depart ),
     format('\tdepart\t%s\t%s', [DepartAP, Depart]),
     print_time( StartTime ), nl,
-
-    %write( '     ' ), write( 'arrive  ' ),
-    %write( DestAP ), write( '  ' ),
-    %write( Dest ),
     format('\tarrive\t%s\t%s', [DestAP, Dest]),
     print_time( ArrivalTime ), nl,
-    !, path_output( [[DestAP, ADTime, AATime] | Rest] ).
+    !, path_output( [[DestAP, DepTime, ArrTime] | Cdr] ).
 
 fly( Depart, Depart ) :-
     write( 'Error: Departing Airport == Destination Airport.' ),
