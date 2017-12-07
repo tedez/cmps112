@@ -41,19 +41,19 @@ get_distance_a_to_b( AirpA, AirpB, Distance ) :-
 convert_to_hours( time( Hours, Mins ), ReturnConvertedHours ) :-
     ReturnConvertedHours is Hours + Mins / 60.
 
-print_2digits( Digits ) :-
+format_time( Digits ) :-
     Digits < 10, print( 0 ), print( Digits ).
 
-print_2digits( Digits ) :-
+format_time( Digits ) :-
     Digits >= 10, print( Digits ).
 
 print_time( Hoursonly ) :-
     Minsonly is floor( Hoursonly * 60 ),
     Hours is Minsonly // 60,
     Mins is Minsonly mod 60,
-    print_2digits( Hours ),
+    format_time( Hours ),
     print( ':' ),
-    print_2digits( Mins ).
+    format_time( Mins ).
 
 % Convert miles to hours by dividing by the 
 % planes' constant rate of travel -- 500 mph
@@ -75,19 +75,19 @@ attempt_path_route( Location, DestAP, Visited, [[Location, StartTime, EndTime] |
     attempt_path_route( DestAP, DestAP, [DestAP | Visited], List, _).
 % FOR CONNECTING FLIGHTS
 attempt_path_route( Location, DestAP, Visited, [[Location, StartTime, EndTime] | List], StartTimeUnmolested ) :-
-    flight( Location, Next, StartTimeUnmolested ),
-    not( member( Next, Visited ) ),
+    flight( Location, Connection, StartTimeUnmolested ),
+    not( member( Connection, Visited ) ),
     convert_to_hours( StartTimeUnmolested, StartTime ),
-    get_distance_a_to_b( Location, Next, Distance ),
+    get_distance_a_to_b( Location, Connection, Distance ),
     mph_to_hours( Distance, Delta ),
     EndTime is StartTime + Delta,
     EndTime < 24.0, 
 
-    flight( Next, _, NextDepTimeInHM ),
-    convert_to_hours( NextDepTimeInHM, NextDepTime ),
+    flight( Connection, _, ConnectingTime ),
+    convert_to_hours( ConnectingTime, NextDepTime ),
     TimeDiff is NextDepTime - EndTime - 0.5,
     TimeDiff >= 0, 
-    attempt_path_route( Next, DestAP, [Next | Visited], List, NextDepTimeInHM ).
+    attempt_path_route( Connection, DestAP, [Connection | Visited], List, ConnectingTime ).
 
 path_output( [] ) :- nl.
 path_output( [[DepartAP, StartTime, ArrivalTime], DestAP | []] ) :-
