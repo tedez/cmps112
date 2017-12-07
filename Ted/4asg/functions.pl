@@ -1,32 +1,45 @@
 not( X ) :- X, !, fail.
 not( _ ).
 
-convert_to_degrees( degmin( Degrees, Minutes ), Degreesonly ) :-
-    Degreesonly is Degrees + Minutes / 60.
+constants( List ) :-
+   Pi is pi,
+   E is e,
+   Epsilon is epsilon,
+   List = [Pi, E, Epsilon].
 
-calculate_distance( X1, Y1, X2, Y2, Hypotenuse ) :-
-    Hypotenuse is sqrt((X2 - X1)**2 + (Y2 - Y1)**2).
+mathfns( X, List ) :-
+   S is sin( X ),
+   C is cos( X ),
+   Q is sqrt( X ),
+   List = [S, C, Q].
 
-distance( Airport1, Airport2, DistanceMiles ) :-
+haversine_radians( LatA, LonA, LatB, LonB, Distance ) :-
+   Dlon is LonB - LonA,
+   Dlat is LatB - LatA,
+   A is sin( Dlat / 2 ) ** 2
+      + cos( LatA ) * cos( LatB ) * sin( Dlon / 2 ) ** 2,
+   Dist is 2 * atan2( sqrt( A ), sqrt( 1 - A )),
+   % returns distance between airports in meters... 
+   Distance is Dist * 3961.
+
+convert_to_rads( degmin( Deg, Mins ), ReturnDeg ) :-
+    ReturnDeg is ( ( Deg + Mins / 60 ) * ( pi / 180 ) ).
+
+get_distance_a_to_b( AirpA, AirpB, Distance ) :-
     % GET LAT AND LON FOR INPUT AIRPORTS
-    airport( Airport1, _, Latitude1, Longitude1 ),
-    airport( Airport2, _, Latitude2, Longitude2 ),
-	% CONVERT LAT AND LONS TO SOLELY DEGREES 
-    convert_to_degrees( Latitude1, Latdegrees1 ),
-    convert_to_degrees( Latitude2, Latdegrees2 ),
-    convert_to_degrees( Longitude1, Longdegrees1 ),
-    convert_to_degrees( Longitude2, Longdegrees2 ),
-	% CALCULATE DISTANCE BEWTWEEN AIRPORTS 
-    calculate_distance( Latdegrees1, Longdegrees1, Latdegrees2, Longdegrees2,
-                DistanceDegrees ),
-	% CONVERT DEGREES TO MILES 
-    DistanceMiles is 69 * DistanceDegrees.
+    airport( AirpA, _, LatA, LonA ),
+    airport( AirpB, _, LatB, LonB ),
+    % CONVERT LAT AND LONS TO SOLELY DEGREES 
+    convert_to_rads( LatA, LatRadsA ),
+    convert_to_rads( LatB, LatRadsB ),
+    convert_to_rads( LonA, LonRadsA ),
+    convert_to_rads( LonB, LonRadsB ),
+    % CALCULATE DISTANCE BEWTWEEN AIRPORTS 
+    haversine_radians( LatRadsA, LonRadsA, LatRadsB,
+     LonRadsB, Distance ).
 
-convert_to_hours( time( Hours, Mins ), Hoursonly ) :-
-    Hoursonly is Hours + Mins / 60.
-
-miles_to_hours( Miles, Hours ) :-
-    Hours is Miles / 500.
+convert_to_hours( time( Hours, Mins ), ReturnConvertedHours ) :-
+    ReturnConvertedHours is Hours + Mins / 60.
 
 print_2digits( Digits ) :-
     Digits < 10, print( 0 ), print( Digits ).
@@ -42,94 +55,100 @@ print_time( Hoursonly ) :-
     print( ':' ),
     print_2digits( Mins ).
 
+% Convert miles to hours by dividing by the 
+% planes' constant rate of travel -- 500 mph
+mph_to_hours( Miles, ReturnConvertedHours ) :- 
+    ReturnConvertedHours is Miles / 500.
+
 /*
  * * Find paths from a departure airport to a destination airport.
  * * The path with the shortest distance is chosen.  
  * * The list returned contains lists of the airports with their 
  * * departure/arrival times.
  * */
-% FACT IF THE START AND END LOCATIONS ARE THE SAME
-findpath( End, End, _, [End], _ ).
-findpath( Curr, End, Visited, [[Curr, DepTime, ArrTime] | List],
-          DepTimeInHM ) :-
-    flight( Curr, End, DepTimeInHM ),
-    not( member( End, Visited ) ),
-    convert_to_hours( DepTimeInHM, DepTime ),
-    distance( Curr, End, DistanceMi ),
-    miles_to_hours( DistanceMi, DeltaTime ),
-    ArrTime is DepTime + DeltaTime,
-    ArrTime < 24.0, 
-	findpath( End, End, [End | Visited], List, _).
+
+
+attempt_path_route( DestAP, DestAP, _, [DestAP], _ ).
+% CASE WHERE WE CAN FIND A DIRECT PATH FROM CURRENT 
+% AIRPORT TO DESTINATION AIRPORT 
+attempt_path_route( Location, DestAP, Visited, [[Location, StartTime, EndTime] | List], StartTimeUnmolested ) :-
+    flight( Location, DestAP, StartTimeUnmolested ),
+    not( member( DestAP, Visited ) ),
+    convert_to_hours( StartTimeUnmolested, StartTime ),
+    get_distance_a_to_b( Location, DestAP, Distance ),
+    mph_to_hours( Distance, Delta ),
+    EndTime is StartTime + Delta,
+    EndTime < 24.0, 
+    attempt_path_route( DestAP, DestAP, [DestAP | Visited], List, _).
 % FOR CONNECTING FLIGHTS
-findpath( Curr, End, Visited, [[Curr, DepTime, ArrTime] | List],
-          DepTimeInHM ) :-
-    flight( Curr, Next, DepTimeInHM ),
+attempt_path_route( Location, DestAP, Visited, [[Location, StartTime, EndTime] | List], StartTimeUnmolested ) :-
+    flight( Location, Next, StartTimeUnmolested ),
     not( member( Next, Visited ) ),
-    convert_to_hours( DepTimeInHM, DepTime ),
-    distance( Curr, Next, DistanceMi ),
-    miles_to_hours( DistanceMi, DeltaTime ),
-    ArrTime is DepTime + DeltaTime,
-    ArrTime < 24.0, 
-	flight( Next, _, NextDepTimeInHM ),
+    convert_to_hours( StartTimeUnmolested, StartTime ),
+    get_distance_a_to_b( Location, Next, Distance ),
+    mph_to_hours( Distance, Delta ),
+    EndTime is StartTime + Delta,
+    EndTime < 24.0, 
 
+    flight( Next, _, NextDepTimeInHM ),
     convert_to_hours( NextDepTimeInHM, NextDepTime ),
-    TimeDiff is NextDepTime - ArrTime - 0.5,
+    TimeDiff is NextDepTime - EndTime - 0.5,
     TimeDiff >= 0, 
-	findpath( Next, End, [Next | Visited], List, NextDepTimeInHM ).
+    attempt_path_route( Next, DestAP, [Next | Visited], List, NextDepTimeInHM ).
 
-/*
- * * Write the given list using a certain form given departs/arrives
- * * paired with times.
- * */
-writepath( [] ) :- nl.
-writepath( [[Dep, DDTime, DATime], Arr | []] ) :-
-    airport( Dep, Depart_name, _, _),
-    airport( Arr, Arrive_name, _, _),
-    write( '     ' ), write( 'depart  ' ),
-    write( Dep ), write( '  ' ),
-    write( Depart_name ),
-    print_time( DDTime ), nl,
-
-    write( '     ' ), write( 'arrive  ' ),
-    write( Arr ), write( '  ' ),
-    write( Arrive_name ),
-    print_time( DATime ), nl,
+path_output( [] ) :- nl.
+path_output( [[DepartAP, StartTime, ArrivalTime], DestAP | []] ) :-
+    airport( DepartAP, Depart, _, _),
+    airport( DestAP, Dest, _, _),
+    %write( '     ' ), write( 'depart  ' ),
+    %write( DepartAP ), write( '  ' ),
+    %write( Depart ),
+    format('\tdepart\t%s\t%s', [DepartAP, Depart]),
+    print_time( StartTime ), nl,
+    %write( '     ' ), write( 'arrive  ' ),
+    %write( DestAP ), write( '  ' ),
+    %write( Dest ),
+    format('\tarrive\t%s\t%s', [DestAP, Dest]),
+    print_time( ArrivalTime ), nl,
     !, true.
-writepath( [[Dep, DDTime, DATime], [Arr, ADTime, AATime] | Rest] ) :-
-    airport( Dep, Depart_name, _, _),
-    airport( Arr, Arrive_name, _, _),
-    write( '     ' ), write( 'depart  ' ),
-    write( Dep ), write( '  ' ),
-    write( Depart_name ),
-    print_time( DDTime ), nl,
+path_output( [[DepartAP, StartTime, ArrivalTime], [DestAP, ADTime, AATime] | Rest] ) :-
+    airport( DepartAP, Depart, _, _),
+    airport( DestAP, Dest, _, _),
+    %write( '     ' ), write( 'depart  ' ),
+    %write( DepartAP ), write( '  ' ),
+    %write( Depart ),
+    format('\tdepart\t%s\t%s', [DepartAP, Depart]),
+    print_time( StartTime ), nl,
 
-    write( '     ' ), write( 'arrive  ' ),
-    write( Arr ), write( '  ' ),
-    write( Arrive_name ),
-    print_time( DATime ), nl,
-    !, writepath( [[Arr, ADTime, AATime] | Rest] ).
+    %write( '     ' ), write( 'arrive  ' ),
+    %write( DestAP ), write( '  ' ),
+    %write( Dest ),
+    format('\tarrive\t%s\t%s', [DestAP, Dest]),
+    print_time( ArrivalTime ), nl,
+    !, path_output( [[DestAP, ADTime, AATime] | Rest] ).
 
 fly( Depart, Depart ) :-
-    write( 'Error: the departure and the destination are the same.' ),
+    write( 'Error: Departing Airport == Destination Airport.' ),
     nl,
     !, fail.
 % MAIN TEST CASE...
 fly( Depart, Arrive ) :-
+    % CHECK THE INPUT AIRPORTS ARE IN OUR DATABASE
     airport( Depart, _, _, _ ),
     airport( Arrive, _, _, _ ),
-	% TWO INPUT AIRPORTS ARE IN DATABASE.PL
-	% SO WE ATTEMPT OT FIND A PATH BETWEEN THEM
-    findpath( Depart, Arrive, [Depart], List, _ ),
+    % TWO INPUT AIRPORTS ARE IN DATABASE.PL
+    % SO WE ATTEMPT OT FIND A PATH BETWEEN THEM
+    attempt_path_route( Depart, Arrive, [Depart], List, _ ),
     !, nl,
-	% IF WE HIT THIS POINT, WE HAVE FOUND A PATH & NEED TO 
-	% WRITE IT...FINDPATH DID NOT FAIL
-    writepath( List ),
+    % IF WE HIT THIS POINT, WE HAVE FOUND A PATH & NEED TO 
+    % WRITE IT...FINDPATH DID NOT FAIL
+    path_output( List ),
     true.
 fly( Depart, Arrive ) :-
     airport( Depart, _, _, _ ),
     airport( Arrive, _, _, _ ),
-    write( 'Error: your flight is not possible in the twilight zone.' ),
+    write( 'Error: Flight not possible.' ),
     !, fail.
 fly( _, _) :-
-    write( 'Error: nonexistent airport(s).' ), nl,
+    write( 'Error: At least one non-existent airport.' ), nl,
     !, fail.
